@@ -4,7 +4,9 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated
 
-from pydantic import BaseModel, BeforeValidator, Field, computed_field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, computed_field
+
+__all__ = ["Absence", "EuropeanDate", "EmployeeNumber"]
 
 _EMPLOYEE_NUMBER_PATTERN = r"^\d+$"
 
@@ -33,6 +35,8 @@ class Absence(BaseModel):
     Date range is inclusive: an absence from 15/05/2026 to 15/05/2026
     represents a single day off (that day is included).
     """
+
+    model_config = ConfigDict(frozen=True)
 
     # Critical fields - strictly validated
     id: int
@@ -75,20 +79,14 @@ class Absence(BaseModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def is_half_day(self) -> bool:
-        """True if this is a half-day absence (morning or afternoon)."""
-        return self.half_day
-
-    @computed_field  # type: ignore[prop-decorator]
-    @property
     def is_morning_half_day(self) -> bool:
-        """True if this is a morning half-day. Only meaningful when is_half_day is True."""
+        """True if this is a morning half-day."""
         return self.half_day and self.morning
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def is_afternoon_half_day(self) -> bool:
-        """True if this is an afternoon half-day. Only meaningful when is_half_day is True."""
+        """True if this is an afternoon half-day."""
         return self.half_day and not self.morning
 
     @computed_field  # type: ignore[prop-decorator]

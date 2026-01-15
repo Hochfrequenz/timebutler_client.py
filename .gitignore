@@ -135,3 +135,4 @@ dmypy.json
 
 src/_your_package_version.py
 .claude/
+src/_timebutler_client_version.py

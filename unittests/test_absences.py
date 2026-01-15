@@ -3,10 +3,17 @@
 from datetime import date
 from decimal import Decimal
 
+import pytest
 from aioresponses import aioresponses
 
-from timebutler_client import Absence, TimebutlerClient
-
+from timebutler_client import (
+    Absence,
+    TimebutlerAuthenticationError,
+    TimebutlerClient,
+    TimebutlerParseError,
+    TimebutlerRateLimitError,
+    TimebutlerServerError,
+)
 
 # pylint: disable=line-too-long
 SAMPLE_CSV = """\
@@ -321,3 +328,92 @@ class TestGetAbsences:
             request_data = calls[0].kwargs.get("data", {})
             assert request_data["auth"] == "my-secret-key"
             assert request_data["year"] == "2026"
+
+    async def test_get_absences_raises_on_invalid_year(self) -> None:
+        """Verify ValueError is raised for invalid year."""
+        client = TimebutlerClient(api_key="test-api-key")
+
+        with pytest.raises(ValueError, match="Year must be between 1900 and 2100"):
+            await client.get_absences(year=1800)
+
+        with pytest.raises(ValueError, match="Year must be between 1900 and 2100"):
+            await client.get_absences(year=2200)
+
+    async def test_get_absences_raises_on_auth_error(self) -> None:
+        """Verify TimebutlerAuthenticationError is raised on 401."""
+        client = TimebutlerClient(api_key="bad-key")
+
+        with aioresponses() as mocked:
+            mocked.post(
+                "https://app.timebutler.com/api/v1/absences",
+                status=401,
+            )
+
+            with pytest.raises(TimebutlerAuthenticationError):
+                await client.get_absences(year=2026)
+
+    async def test_get_absences_raises_on_rate_limit(self) -> None:
+        """Verify TimebutlerRateLimitError is raised on 429."""
+        client = TimebutlerClient(api_key="test-api-key")
+
+        with aioresponses() as mocked:
+            mocked.post(
+                "https://app.timebutler.com/api/v1/absences",
+                status=429,
+                headers={"Retry-After": "60"},
+            )
+
+            with pytest.raises(TimebutlerRateLimitError) as exc_info:
+                await client.get_absences(year=2026)
+
+            assert exc_info.value.retry_after == 60
+
+    async def test_get_absences_raises_on_server_error(self) -> None:
+        """Verify TimebutlerServerError is raised on 5xx."""
+        client = TimebutlerClient(api_key="test-api-key")
+
+        with aioresponses() as mocked:
+            mocked.post(
+                "https://app.timebutler.com/api/v1/absences",
+                status=500,
+                body="Internal Server Error",
+            )
+
+            with pytest.raises(TimebutlerServerError) as exc_info:
+                await client.get_absences(year=2026)
+
+            assert exc_info.value.status_code == 500
+
+    async def test_get_absences_raises_on_malformed_csv(self) -> None:
+        """Verify TimebutlerParseError is raised on malformed CSV."""
+        client = TimebutlerClient(api_key="test-api-key")
+
+        with aioresponses() as mocked:
+            mocked.post(
+                "https://app.timebutler.com/api/v1/absences",
+                status=200,
+                headers=RESPONSE_HEADERS,
+                body="not;valid;csv\nmissing;required;fields",
+            )
+
+            with pytest.raises(TimebutlerParseError):
+                await client.get_absences(year=2026)
+
+    async def test_get_absences_returns_empty_list_on_empty_csv(self) -> None:
+        """Verify empty list is returned when CSV has only headers."""
+        client = TimebutlerClient(api_key="test-api-key")
+        # pylint: disable=line-too-long
+        empty_csv = "ID;From;To;Half a day;Morning;User ID;Employee number;Type;Extra vacation day;State;Substitute state;Workdays;Hours;Medical certificate (sick leave only);Comments;User ID of the substitute"
+        # pylint: enable=line-too-long
+
+        with aioresponses() as mocked:
+            mocked.post(
+                "https://app.timebutler.com/api/v1/absences",
+                status=200,
+                headers=RESPONSE_HEADERS,
+                body=empty_csv,
+            )
+
+            result = await client.get_absences(year=2026)
+
+        assert result == []
