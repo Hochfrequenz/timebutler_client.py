@@ -1,6 +1,9 @@
 # timebutler_client
 
-Async Python client for the [Timebutler](https://timebutler.com) API.
+Async Python client for the [Timebutler](https://timebutler.com) API ([official docs](https://app.timebutler.com/do?ha=api&ac=10)).
+
+> [!IMPORTANT]
+> This is NOT an official client by Timebutler GmbH, just a community project.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Python Versions (officially) supported](https://img.shields.io/pypi/pyversions/timebutler_client.svg)
