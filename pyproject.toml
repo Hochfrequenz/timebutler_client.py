@@ -3,8 +3,8 @@ name = "timebutler_client"
 description = "Async Python client for the Timebutler API"
 license = { text = "MIT" }
 requires-python = ">=3.11"
-authors = [{ name = "your name", email = "your@email.address" }]
-keywords = ["timebutler", "api", "client", "async", "aiohttp", "absence", "vacation"]
+authors = [{ name = "Hochfrequenz Unternehmensberatung GmbH", email = "info+github@hochfrequenz.de" }]
+keywords = ["timebutler", "api", "client", "async", "aiohttp"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
