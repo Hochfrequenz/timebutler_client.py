@@ -6,8 +6,8 @@ Async Python client for the [Timebutler](https://timebutler.com) API ([official 
 > This is NOT an official client by Timebutler GmbH, just a community project.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Python Versions (officially) supported](https://img.shields.io/pypi/pyversions/timebutler_client.svg)
-![Pypi status badge](https://img.shields.io/pypi/v/timebutler_client)
+![Python Versions (officially) supported](https://img.shields.io/pypi/pyversions/timebutler-client.svg)
+![Pypi status badge](https://img.shields.io/pypi/v/timebutler-client)
 ![Unittests status badge](https://github.com/Hochfrequenz/timebutler_client.py/workflows/Unittests/badge.svg)
 ![Coverage status badge](https://github.com/Hochfrequenz/timebutler_client.py/workflows/Coverage/badge.svg)
 ![Linting status badge](https://github.com/Hochfrequenz/timebutler_client.py/workflows/Linting/badge.svg)
@@ -16,7 +16,7 @@ Async Python client for the [Timebutler](https://timebutler.com) API ([official 
 ## Installation
 
 ```bash
-pip install timebutler_client
+pip install timebutler-client
 ```
 
 ## Usage
