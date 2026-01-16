@@ -16,6 +16,7 @@ from timebutler_client import (
 )
 
 # pylint: disable=line-too-long
+# data have been anonymized - don't worry
 SAMPLE_CSV = """\
 ID;From;To;Half a day;Morning;User ID;Employee number;Type;Extra vacation day;State;Substitute state;Workdays;Hours;Medical certificate (sick leave only);Comments;User ID of the substitute
 20001234;15/05/2026;15/05/2026;false;false;928812;00123;Vacation;false;Approved;No approval required;1.0;0.0; ; ;300224
