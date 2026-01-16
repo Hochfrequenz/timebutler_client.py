@@ -33,13 +33,43 @@ for absence in absences:
 
 ## Features
 
-> [!NOTE]  
-> We only implemented the `get_absences` so far, because the API is not very convenient to develop against (no OpenAPI, no sandbox or test system, only admin API keys).
+> [!NOTE]
+> We only implemented a subset of the Timebutler API endpoints, because the API is not very convenient to develop against (no OpenAPI, no sandbox or test system, only admin API keys).
 
 - Async HTTP client using `aiohttp`
 - Typed responses using Pydantic models
 - Strict date parsing (European `dd/mm/yyyy` format)
 - Employee number handling with leading zeros preserved
+
+### Supported Endpoints
+
+| Method | Description |
+|--------|-------------|
+| `get_absences(year)` | Fetch absences for a given year |
+| `get_projects()` | Fetch all projects |
+| `get_services()` | Fetch all services |
+| `get_worktime(year?, month?, user_id?)` | Fetch worktime entries with optional filters |
+
+### Example: Tracking Time by Project
+
+```python
+from timebutler_client import TimebutlerClient
+
+client = TimebutlerClient(api_key="your-api-key")
+
+# Get all projects and worktime entries
+projects = await client.get_projects()
+worktime = await client.get_worktime(year=2026, month=1)
+
+# Build a project name lookup
+project_names = {p.id: p.name_stripped for p in projects}
+
+# Sum hours by project
+for entry in worktime:
+    if entry.has_project:
+        project_name = project_names.get(entry.project_id, "Unknown")
+        print(f"{entry.date}: {entry.duration} on {project_name}")
+```
 
 ## Development
 
