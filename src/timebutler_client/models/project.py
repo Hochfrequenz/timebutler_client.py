@@ -28,7 +28,7 @@ class Project(BaseModel):
     @property
     def name_stripped(self) -> str:
         """Project name with leading/trailing whitespace removed."""
-        return self.name.strip()
+        return self.name.strip()  # pylint: disable=no-member
 
     @computed_field  # type: ignore[prop-decorator]
     @property
