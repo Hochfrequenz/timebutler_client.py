@@ -13,7 +13,7 @@ from timebutler_client.exceptions import (
     TimebutlerRateLimitError,
     TimebutlerServerError,
 )
-from timebutler_client.models import Absence, Project, Service, WorktimeEntry
+from timebutler_client.models import Absence, Project, Service, WorkdaySchedule, WorktimeEntry
 
 
 class TimebutlerClient(BaseModel):
@@ -267,6 +267,59 @@ class TimebutlerClient(BaseModel):
                 await self._check_response(response)
                 csv_text = await response.text()
                 return self._parse_worktime_csv(csv_text)
+
+    async def get_workdays(self) -> list[WorkdaySchedule]:
+        """
+        Fetch workday schedules for all users.
+
+        Returns:
+            List of WorkdaySchedule objects. A user may appear multiple times
+            if their schedule changed over time.
+
+        Raises:
+            TimebutlerAuthenticationError: If API key is invalid
+            TimebutlerRateLimitError: If rate limit is exceeded
+            TimebutlerServerError: If server returns 5xx error
+            TimebutlerParseError: If response cannot be parsed
+
+        Note:
+            Despite being named 'get_', this calls a POST endpoint
+            (Timebutler API only accepts POST requests).
+        """
+        timeout_config = aiohttp.ClientTimeout(total=self.timeout)
+        async with aiohttp.ClientSession(timeout=timeout_config) as session:
+            async with session.post(
+                f"{self.base_url}/workdays",
+                data={"auth": self._api_key},
+            ) as response:
+                await self._check_response(response)
+                csv_text = await response.text()
+                return self._parse_workdays_csv(csv_text)
+
+    def _parse_workdays_csv(self, csv_text: str) -> list[WorkdaySchedule]:
+        """Parse semicolon-delimited CSV into WorkdaySchedule models."""
+        try:
+            reader = csv.DictReader(StringIO(csv_text), delimiter=";")
+            schedules: list[WorkdaySchedule] = []
+
+            for row in reader:
+                schedule = WorkdaySchedule(
+                    user_id=int(row["User ID"]),
+                    valid_from=row["Valid from (dd/mm/yyyy)"],  # type: ignore[arg-type]  # BeforeValidator handles str->date
+                    monday_minutes=int(row["Monday working time in minutes"]) if row.get("Monday working time in minutes") else 0,
+                    tuesday_minutes=int(row["Tuesday working time in minutes"]) if row.get("Tuesday working time in minutes") else 0,
+                    wednesday_minutes=int(row["Wednesday working time in minutes"]) if row.get("Wednesday working time in minutes") else 0,
+                    thursday_minutes=int(row["Thursday working time in minutes"]) if row.get("Thursday working time in minutes") else 0,
+                    friday_minutes=int(row["Friday working time in minutes"]) if row.get("Friday working time in minutes") else 0,
+                    saturday_minutes=int(row["Saturday working time in minutes"]) if row.get("Saturday working time in minutes") else 0,
+                    sunday_minutes=int(row["Sunday working time in minutes"]) if row.get("Sunday working time in minutes") else 0,
+                    holiday_set_id=int(row["ID of the holiday set"]) if row.get("ID of the holiday set") else 0,
+                )
+                schedules.append(schedule)
+
+            return schedules
+        except (KeyError, ValueError) as e:
+            raise TimebutlerParseError(f"Failed to parse API response: {e}") from e
 
     def _parse_worktime_csv(self, csv_text: str) -> list[WorktimeEntry]:
         """Parse semicolon-delimited CSV into WorktimeEntry models."""
