@@ -1,5 +1,6 @@
 """Async client for the Timebutler API."""
 
+import asyncio
 import csv
 from decimal import Decimal
 from io import StringIO
@@ -13,7 +14,7 @@ from timebutler_client.exceptions import (
     TimebutlerRateLimitError,
     TimebutlerServerError,
 )
-from timebutler_client.models import Absence, Project, Service, WorkdaySchedule, WorktimeEntry
+from timebutler_client.models import Absence, Project, Service, User, WorkdaySchedule, WorktimeEntry
 
 
 class TimebutlerClient(BaseModel):
@@ -270,11 +271,81 @@ class TimebutlerClient(BaseModel):
 
     async def get_workdays(self) -> list[WorkdaySchedule]:
         """
-        Fetch workday schedules for all users.
+        Fetch workday schedules for all users, enriched with employee numbers.
+
+        Internally calls both /workdays and /users concurrently to resolve
+        the employee number for each user ID.
 
         Returns:
             List of WorkdaySchedule objects. A user may appear multiple times
             if their schedule changed over time.
+
+        Raises:
+            TimebutlerAuthenticationError: If API key is invalid
+            TimebutlerRateLimitError: If rate limit is exceeded
+            TimebutlerServerError: If server returns 5xx error
+            TimebutlerParseError: If response cannot be parsed, or if a user ID
+                from workdays has no matching entry in the users response
+
+        Note:
+            Despite being named 'get_', this calls POST endpoints
+            (Timebutler API only accepts POST requests).
+        """
+        timeout_config = aiohttp.ClientTimeout(total=self.timeout)
+        async with aiohttp.ClientSession(timeout=timeout_config) as session:
+
+            async def _fetch(endpoint: str) -> str:
+                async with session.post(
+                    f"{self.base_url}/{endpoint}",
+                    data={"auth": self._api_key},
+                ) as response:
+                    await self._check_response(response)
+                    return await response.text()
+
+            workdays_csv, users_csv = await asyncio.gather(_fetch("workdays"), _fetch("users"))
+
+        users = self._parse_users_csv(users_csv)
+        employee_number_map: dict[int, str] = {u.user_id: u.employee_number for u in users}
+        return self._parse_workdays_csv(workdays_csv, employee_number_map)
+
+    def _parse_workdays_csv(self, csv_text: str, employee_number_map: dict[int, str]) -> list[WorkdaySchedule]:
+        """Parse semicolon-delimited CSV into WorkdaySchedule models."""
+        try:
+            reader = csv.DictReader(StringIO(csv_text), delimiter=";")
+            schedules: list[WorkdaySchedule] = []
+
+            for row in reader:
+                user_id = int(row["User ID"])
+                employee_number = employee_number_map.get(user_id)
+                if employee_number is None:
+                    raise TimebutlerParseError(f"No user found for user ID {user_id} in users response")
+                schedule = WorkdaySchedule(
+                    user_id=user_id,
+                    valid_from=row["Valid from (dd/mm/yyyy)"],  # type: ignore[arg-type]  # BeforeValidator handles str->date
+                    employee_number=employee_number,
+                    monday_minutes=int(row["Monday working time in minutes"]) if row.get("Monday working time in minutes") else 0,
+                    tuesday_minutes=int(row["Tuesday working time in minutes"]) if row.get("Tuesday working time in minutes") else 0,
+                    wednesday_minutes=int(row["Wednesday working time in minutes"]) if row.get("Wednesday working time in minutes") else 0,
+                    thursday_minutes=int(row["Thursday working time in minutes"]) if row.get("Thursday working time in minutes") else 0,
+                    friday_minutes=int(row["Friday working time in minutes"]) if row.get("Friday working time in minutes") else 0,
+                    saturday_minutes=int(row["Saturday working time in minutes"]) if row.get("Saturday working time in minutes") else 0,
+                    sunday_minutes=int(row["Sunday working time in minutes"]) if row.get("Sunday working time in minutes") else 0,
+                    holiday_set_id=int(row["ID of the holiday set"]) if row.get("ID of the holiday set") else 0,
+                )
+                schedules.append(schedule)
+
+            return schedules
+        except TimebutlerParseError:
+            raise
+        except (KeyError, ValueError) as e:
+            raise TimebutlerParseError(f"Failed to parse API response: {e}") from e
+
+    async def get_users(self) -> list[User]:
+        """
+        Fetch all users.
+
+        Returns:
+            List of User objects.
 
         Raises:
             TimebutlerAuthenticationError: If API key is invalid
@@ -289,35 +360,43 @@ class TimebutlerClient(BaseModel):
         timeout_config = aiohttp.ClientTimeout(total=self.timeout)
         async with aiohttp.ClientSession(timeout=timeout_config) as session:
             async with session.post(
-                f"{self.base_url}/workdays",
+                f"{self.base_url}/users",
                 data={"auth": self._api_key},
             ) as response:
                 await self._check_response(response)
                 csv_text = await response.text()
-                return self._parse_workdays_csv(csv_text)
+                return self._parse_users_csv(csv_text)
 
-    def _parse_workdays_csv(self, csv_text: str) -> list[WorkdaySchedule]:
-        """Parse semicolon-delimited CSV into WorkdaySchedule models."""
+    def _parse_users_csv(self, csv_text: str) -> list[User]:
+        """Parse semicolon-delimited CSV into User models."""
         try:
             reader = csv.DictReader(StringIO(csv_text), delimiter=";")
-            schedules: list[WorkdaySchedule] = []
+            users: list[User] = []
 
             for row in reader:
-                schedule = WorkdaySchedule(
+                user = User(
                     user_id=int(row["User ID"]),
-                    valid_from=row["Valid from (dd/mm/yyyy)"],  # type: ignore[arg-type]  # BeforeValidator handles str->date
-                    monday_minutes=int(row["Monday working time in minutes"]) if row.get("Monday working time in minutes") else 0,
-                    tuesday_minutes=int(row["Tuesday working time in minutes"]) if row.get("Tuesday working time in minutes") else 0,
-                    wednesday_minutes=int(row["Wednesday working time in minutes"]) if row.get("Wednesday working time in minutes") else 0,
-                    thursday_minutes=int(row["Thursday working time in minutes"]) if row.get("Thursday working time in minutes") else 0,
-                    friday_minutes=int(row["Friday working time in minutes"]) if row.get("Friday working time in minutes") else 0,
-                    saturday_minutes=int(row["Saturday working time in minutes"]) if row.get("Saturday working time in minutes") else 0,
-                    sunday_minutes=int(row["Sunday working time in minutes"]) if row.get("Sunday working time in minutes") else 0,
-                    holiday_set_id=int(row["ID of the holiday set"]) if row.get("ID of the holiday set") else 0,
+                    last_name=row["Last name"],
+                    first_name=row["First name"],
+                    employee_number=row["Employee number"],
+                    email=row.get("E-mail address", "").strip(),
+                    phone=row.get("Phone", "").strip(),
+                    mobile_phone=row.get("Mobile phone", "").strip(),
+                    cost_center=row.get("Cost center", "").strip(),
+                    branch_office=row.get("Branch office", "").strip(),
+                    department=row.get("Department", "").strip(),
+                    user_type=row.get("User type", "").strip(),
+                    language=row.get("Language", "").strip(),
+                    manager_user_ids=row.get("User ID list of the user's manager", ""),  # type: ignore[arg-type]  # BeforeValidator handles str->list
+                    account_locked=row.get("User account locked", "").lower() == "true",
+                    additional_information=row.get("Additional Information", "").strip(),
+                    date_of_entry=row.get("Date of entry (dd/mm/yyyy)", ""),  # type: ignore[arg-type]  # BeforeValidator handles str->date|None
+                    date_of_separation=row.get("Date of separation from company (dd/mm/yyyy)", ""),  # type: ignore[arg-type]  # BeforeValidator handles str->date|None
+                    date_of_birth=row.get("Day of birth (dd/mm/yyyy)", ""),  # type: ignore[arg-type]  # BeforeValidator handles str->date|None
                 )
-                schedules.append(schedule)
+                users.append(user)
 
-            return schedules
+            return users
         except (KeyError, ValueError) as e:
             raise TimebutlerParseError(f"Failed to parse API response: {e}") from e
 

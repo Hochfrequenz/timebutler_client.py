@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from timebutler_client.models.absence import EuropeanDate
+from timebutler_client.models.absence import EmployeeNumber, EuropeanDate
 
 __all__ = ["WorkdaySchedule"]
 
@@ -23,6 +23,7 @@ class WorkdaySchedule(BaseModel):
     # Critical fields - strictly validated
     user_id: int
     valid_from: EuropeanDate = Field(description="Date from which this schedule is valid (inclusive)")
+    employee_number: EmployeeNumber = Field(description="Employee number with leading zeros, e.g. '00123'")
 
     # Good to have - relaxed validation with defaults
     monday_minutes: int = 0

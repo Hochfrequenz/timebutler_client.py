@@ -15,12 +15,18 @@ from timebutler_client import (
 )
 
 # pylint: disable=line-too-long
-SAMPLE_CSV = """\
+SAMPLE_WORKDAYS_CSV = """\
 User ID;Valid from (dd/mm/yyyy);Monday working time in minutes;Tuesday working time in minutes;Wednesday working time in minutes;Thursday working time in minutes;Friday working time in minutes;Saturday working time in minutes;Sunday working time in minutes;ID of the holiday set
 928812;01/01/2020;480;480;480;480;480;0;0;42
 928812;01/03/2024;480;480;480;480;240;0;0;42
 322219;01/01/2021;480;480;480;480;480;0;0;42
 300224;01/06/2019;480;480;480;480;480;0;0;17"""
+
+SAMPLE_USERS_CSV = """\
+User ID;Last name;First name;Employee number;E-mail address;Phone;Mobile phone;Cost center;Branch office;Department;User type;Language;User ID list of the user's manager;User account locked;Additional Information;Date of entry (dd/mm/yyyy);Date of separation from company (dd/mm/yyyy);Day of birth (dd/mm/yyyy)
+928812;Müller;Anna;00123;anna.mueller@example.com;;;;;; ;Employee;de_DE;;false;;;
+322219;Schmidt;Bob;00160;bob.schmidt@example.com;;;;;; ;Employee;de_DE;;false;;;
+300224;Fischer;Clara;00042;clara.fischer@example.com;;;;;; ;Manager;de_DE;;false;;;"""
 # pylint: enable=line-too-long
 
 RESPONSE_HEADERS = {
@@ -35,6 +41,7 @@ EXPECTED_SCHEDULES: list[WorkdaySchedule] = [
     WorkdaySchedule(
         user_id=928812,
         valid_from=date(2020, 1, 1),
+        employee_number="00123",
         monday_minutes=480,
         tuesday_minutes=480,
         wednesday_minutes=480,
@@ -47,6 +54,7 @@ EXPECTED_SCHEDULES: list[WorkdaySchedule] = [
     WorkdaySchedule(
         user_id=928812,
         valid_from=date(2024, 3, 1),
+        employee_number="00123",
         monday_minutes=480,
         tuesday_minutes=480,
         wednesday_minutes=480,
@@ -59,6 +67,7 @@ EXPECTED_SCHEDULES: list[WorkdaySchedule] = [
     WorkdaySchedule(
         user_id=322219,
         valid_from=date(2021, 1, 1),
+        employee_number="00160",
         monday_minutes=480,
         tuesday_minutes=480,
         wednesday_minutes=480,
@@ -71,6 +80,7 @@ EXPECTED_SCHEDULES: list[WorkdaySchedule] = [
     WorkdaySchedule(
         user_id=300224,
         valid_from=date(2019, 6, 1),
+        employee_number="00042",
         monday_minutes=480,
         tuesday_minutes=480,
         wednesday_minutes=480,
@@ -83,71 +93,56 @@ EXPECTED_SCHEDULES: list[WorkdaySchedule] = [
 ]
 
 
+def _mock_both(mocked: aioresponses, *, workdays_body: str = SAMPLE_WORKDAYS_CSV, users_body: str = SAMPLE_USERS_CSV) -> None:
+    """Register mocks for both /workdays and /users endpoints."""
+    mocked.post(
+        "https://app.timebutler.com/api/v1/workdays",
+        status=200,
+        headers=RESPONSE_HEADERS,
+        body=workdays_body,
+    )
+    mocked.post(
+        "https://app.timebutler.com/api/v1/users",
+        status=200,
+        headers=RESPONSE_HEADERS,
+        body=users_body,
+    )
+
+
 class TestGetWorkdays:
     """Tests for TimebutlerClient.get_workdays()"""
 
     async def test_get_workdays_parses_csv_response(self) -> None:
-        """Verify CSV response is parsed into WorkdaySchedule models."""
+        """Verify CSV response is parsed into WorkdaySchedule models with employee numbers."""
         client = TimebutlerClient(api_key="test-api-key")
 
         with aioresponses() as mocked:
-            mocked.post(
-                "https://app.timebutler.com/api/v1/workdays",
-                status=200,
-                headers=RESPONSE_HEADERS,
-                body=SAMPLE_CSV,
-            )
-
+            _mock_both(mocked)
             actual = await client.get_workdays()
 
         assert actual == EXPECTED_SCHEDULES
 
-    async def test_get_workdays_sends_auth(self) -> None:
-        """Verify auth token is sent as POST data."""
+    async def test_get_workdays_sends_auth_to_both_endpoints(self) -> None:
+        """Verify auth token is sent to both /workdays and /users."""
         client = TimebutlerClient(api_key="my-secret-key")
 
         with aioresponses() as mocked:
-            mocked.post(
-                "https://app.timebutler.com/api/v1/workdays",
-                status=200,
-                headers=RESPONSE_HEADERS,
-                body=SAMPLE_CSV,
-            )
-
+            _mock_both(mocked)
             await client.get_workdays()
 
-            calls = list(mocked.requests.values())[0]
-            assert len(calls) == 1
-            request_data = calls[0].kwargs.get("data", {})
-            assert request_data["auth"] == "my-secret-key"
+            workdays_calls = mocked.requests[("POST", "https://app.timebutler.com/api/v1/workdays")]
+            users_calls = mocked.requests[("POST", "https://app.timebutler.com/api/v1/users")]
 
-    async def test_get_workdays_sends_no_extra_params(self) -> None:
-        """Verify no extra parameters are sent (API accepts none)."""
-        client = TimebutlerClient(api_key="test-api-key")
-
-        with aioresponses() as mocked:
-            mocked.post(
-                "https://app.timebutler.com/api/v1/workdays",
-                status=200,
-                headers=RESPONSE_HEADERS,
-                body=SAMPLE_CSV,
-            )
-
-            await client.get_workdays()
-
-            calls = list(mocked.requests.values())[0]
-            request_data = calls[0].kwargs.get("data", {})
-            assert set(request_data.keys()) == {"auth"}
+            assert workdays_calls[0].kwargs.get("data", {})["auth"] == "my-secret-key"
+            assert users_calls[0].kwargs.get("data", {})["auth"] == "my-secret-key"
 
     async def test_get_workdays_raises_on_auth_error(self) -> None:
         """Verify TimebutlerAuthenticationError is raised on 401."""
         client = TimebutlerClient(api_key="bad-key")
 
         with aioresponses() as mocked:
-            mocked.post(
-                "https://app.timebutler.com/api/v1/workdays",
-                status=401,
-            )
+            mocked.post("https://app.timebutler.com/api/v1/workdays", status=401)
+            mocked.post("https://app.timebutler.com/api/v1/users", status=401)
 
             with pytest.raises(TimebutlerAuthenticationError):
                 await client.get_workdays()
@@ -159,6 +154,11 @@ class TestGetWorkdays:
         with aioresponses() as mocked:
             mocked.post(
                 "https://app.timebutler.com/api/v1/workdays",
+                status=429,
+                headers={"Retry-After": "60"},
+            )
+            mocked.post(
+                "https://app.timebutler.com/api/v1/users",
                 status=429,
                 headers={"Retry-After": "60"},
             )
@@ -178,6 +178,11 @@ class TestGetWorkdays:
                 status=500,
                 body="Internal Server Error",
             )
+            mocked.post(
+                "https://app.timebutler.com/api/v1/users",
+                status=500,
+                body="Internal Server Error",
+            )
 
             with pytest.raises(TimebutlerServerError) as exc_info:
                 await client.get_workdays()
@@ -185,35 +190,40 @@ class TestGetWorkdays:
             assert exc_info.value.status_code == 500
 
     async def test_get_workdays_raises_on_malformed_csv(self) -> None:
-        """Verify TimebutlerParseError is raised on malformed CSV."""
+        """Verify TimebutlerParseError is raised on malformed workdays CSV."""
         client = TimebutlerClient(api_key="test-api-key")
 
         with aioresponses() as mocked:
-            mocked.post(
-                "https://app.timebutler.com/api/v1/workdays",
-                status=200,
-                headers=RESPONSE_HEADERS,
-                body="not;valid;csv\nmissing;required;fields",
-            )
+            _mock_both(mocked, workdays_body="not;valid;csv\nmissing;required;fields")
 
             with pytest.raises(TimebutlerParseError):
                 await client.get_workdays()
 
-    async def test_get_workdays_returns_empty_list_on_empty_csv(self) -> None:
-        """Verify empty list is returned when CSV has only headers."""
+    async def test_get_workdays_raises_when_user_id_missing_from_users(self) -> None:
+        """Verify TimebutlerParseError is raised when a workdays user ID has no match in users."""
         client = TimebutlerClient(api_key="test-api-key")
         # pylint: disable=line-too-long
-        empty_csv = "User ID;Valid from (dd/mm/yyyy);Monday working time in minutes;Tuesday working time in minutes;Wednesday working time in minutes;Thursday working time in minutes;Friday working time in minutes;Saturday working time in minutes;Sunday working time in minutes;ID of the holiday set"
+        users_without_928812 = """\
+User ID;Last name;First name;Employee number;E-mail address;Phone;Mobile phone;Cost center;Branch office;Department;User type;Language;User ID list of the user's manager;User account locked;Additional Information;Date of entry (dd/mm/yyyy);Date of separation from company (dd/mm/yyyy);Day of birth (dd/mm/yyyy)
+322219;Schmidt;Bob;00160;;;;;;;;Employee;de_DE;;false;;;
+300224;Fischer;Clara;00042;;;;;;;;Manager;de_DE;;false;;;"""
         # pylint: enable=line-too-long
 
         with aioresponses() as mocked:
-            mocked.post(
-                "https://app.timebutler.com/api/v1/workdays",
-                status=200,
-                headers=RESPONSE_HEADERS,
-                body=empty_csv,
-            )
+            _mock_both(mocked, users_body=users_without_928812)
 
+            with pytest.raises(TimebutlerParseError, match="928812"):
+                await client.get_workdays()
+
+    async def test_get_workdays_returns_empty_list_on_empty_csv(self) -> None:
+        """Verify empty list is returned when workdays CSV has only headers."""
+        client = TimebutlerClient(api_key="test-api-key")
+        # pylint: disable=line-too-long
+        empty_workdays_csv = "User ID;Valid from (dd/mm/yyyy);Monday working time in minutes;Tuesday working time in minutes;Wednesday working time in minutes;Thursday working time in minutes;Friday working time in minutes;Saturday working time in minutes;Sunday working time in minutes;ID of the holiday set"
+        # pylint: enable=line-too-long
+
+        with aioresponses() as mocked:
+            _mock_both(mocked, workdays_body=empty_workdays_csv)
             result = await client.get_workdays()
 
         assert result == []
@@ -223,17 +233,12 @@ class TestGetWorkdays:
         client = TimebutlerClient(api_key="test-api-key")
 
         with aioresponses() as mocked:
-            mocked.post(
-                "https://app.timebutler.com/api/v1/workdays",
-                status=200,
-                headers=RESPONSE_HEADERS,
-                body=SAMPLE_CSV,
-            )
-
+            _mock_both(mocked)
             result = await client.get_workdays()
 
         user_928812_entries = [s for s in result if s.user_id == 928812]
         assert len(user_928812_entries) == 2
+        assert all(s.employee_number == "00123" for s in user_928812_entries)
 
 
 class TestWorkdayScheduleComputedProperties:
@@ -244,6 +249,7 @@ class TestWorkdayScheduleComputedProperties:
         schedule = WorkdaySchedule(
             user_id=1,
             valid_from=date(2026, 1, 1),
+            employee_number="00001",
             monday_minutes=480,
             tuesday_minutes=480,
             wednesday_minutes=480,
@@ -266,6 +272,7 @@ class TestWorkdayScheduleComputedProperties:
         schedule = WorkdaySchedule(
             user_id=1,
             valid_from=date(2026, 1, 1),
+            employee_number="00001",
             monday_minutes=480,
             tuesday_minutes=480,
             wednesday_minutes=480,
@@ -279,6 +286,7 @@ class TestWorkdayScheduleComputedProperties:
         schedule = WorkdaySchedule(
             user_id=1,
             valid_from=date(2026, 1, 1),
+            employee_number="00001",
             monday_minutes=480,
             tuesday_minutes=480,
             wednesday_minutes=480,
