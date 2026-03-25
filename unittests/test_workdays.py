@@ -24,9 +24,9 @@ User ID;Valid from (dd/mm/yyyy);Monday working time in minutes;Tuesday working t
 
 SAMPLE_USERS_CSV = """\
 User ID;Last name;First name;Employee number;E-mail address;Phone;Mobile phone;Cost center;Branch office;Department;User type;Language;User ID list of the user's manager;User account locked;Additional Information;Date of entry (dd/mm/yyyy);Date of separation from company (dd/mm/yyyy);Day of birth (dd/mm/yyyy)
-928812;Müller;Anna;00123;anna.mueller@example.com;;;;;; ;Employee;de_DE;;false;;;
-322219;Schmidt;Bob;00160;bob.schmidt@example.com;;;;;; ;Employee;de_DE;;false;;;
-300224;Fischer;Clara;00042;clara.fischer@example.com;;;;;; ;Manager;de_DE;;false;;;"""
+928812;Müller;Anna;00123;anna.mueller@example.com;;;;;;Employee;de_DE;;false;;;
+322219;Schmidt;Bob;00160;bob.schmidt@example.com;;;;;;Employee;de_DE;;false;;;
+300224;Fischer;Clara;00042;clara.fischer@example.com;;;;;;Manager;de_DE;;false;;;"""
 # pylint: enable=line-too-long
 
 RESPONSE_HEADERS = {
@@ -130,11 +130,11 @@ class TestGetWorkdays:
             _mock_both(mocked)
             await client.get_workdays()
 
-            workdays_calls = mocked.requests[("POST", "https://app.timebutler.com/api/v1/workdays")]
-            users_calls = mocked.requests[("POST", "https://app.timebutler.com/api/v1/users")]
+            workdays_key = next(k for k in mocked.requests if "workdays" in str(k))
+            users_key = next(k for k in mocked.requests if "/users" in str(k))
 
-            assert workdays_calls[0].kwargs.get("data", {})["auth"] == "my-secret-key"
-            assert users_calls[0].kwargs.get("data", {})["auth"] == "my-secret-key"
+            assert mocked.requests[workdays_key][0].kwargs.get("data", {})["auth"] == "my-secret-key"
+            assert mocked.requests[users_key][0].kwargs.get("data", {})["auth"] == "my-secret-key"
 
     async def test_get_workdays_raises_on_auth_error(self) -> None:
         """Verify TimebutlerAuthenticationError is raised on 401."""
@@ -189,6 +189,18 @@ class TestGetWorkdays:
 
             assert exc_info.value.status_code == 500
 
+    async def test_get_workdays_employee_number_comes_from_users(self) -> None:
+        """Verify employee number is resolved from the users response, not the workdays CSV."""
+        client = TimebutlerClient(api_key="test-api-key")
+
+        with aioresponses() as mocked:
+            _mock_both(mocked)
+            result = await client.get_workdays()
+
+        assert result[0].employee_number == "00123"  # user 928812
+        assert result[2].employee_number == "00160"  # user 322219
+        assert result[3].employee_number == "00042"  # user 300224
+
     async def test_get_workdays_raises_on_malformed_csv(self) -> None:
         """Verify TimebutlerParseError is raised on malformed workdays CSV."""
         client = TimebutlerClient(api_key="test-api-key")
@@ -205,8 +217,8 @@ class TestGetWorkdays:
         # pylint: disable=line-too-long
         users_without_928812 = """\
 User ID;Last name;First name;Employee number;E-mail address;Phone;Mobile phone;Cost center;Branch office;Department;User type;Language;User ID list of the user's manager;User account locked;Additional Information;Date of entry (dd/mm/yyyy);Date of separation from company (dd/mm/yyyy);Day of birth (dd/mm/yyyy)
-322219;Schmidt;Bob;00160;;;;;;;;Employee;de_DE;;false;;;
-300224;Fischer;Clara;00042;;;;;;;;Manager;de_DE;;false;;;"""
+322219;Schmidt;Bob;00160;;;;;;;Employee;de_DE;;false;;;
+300224;Fischer;Clara;00042;;;;;;;Manager;de_DE;;false;;;"""
         # pylint: enable=line-too-long
 
         with aioresponses() as mocked:

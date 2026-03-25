@@ -18,9 +18,9 @@ from timebutler_client import (
 SAMPLE_CSV = """\
 User ID;Last name;First name;Employee number;E-mail address;Phone;Mobile phone;Cost center;Branch office;Department;User type;Language;User ID list of the user's manager;User account locked;Additional Information;Date of entry (dd/mm/yyyy);Date of separation from company (dd/mm/yyyy);Day of birth (dd/mm/yyyy)
 928812;Müller;Anna;00123;anna.mueller@example.com;+49 211 123456;+49 170 654321;CC-01;Düsseldorf;Engineering;Employee;de_DE;100001;false;Senior Dev;01/03/2019;;15/04/1988
-322219;Schmidt;Bob;00160;bob.schmidt@example.com;;;;; ;Engineering;Employee;de_DE;100001;false;;;
-300224;Fischer;Clara;00042;clara.fischer@example.com;;;;; ;IT;Manager;de_DE;;false;;01/07/2015;31/12/2025;
-100001;Weber;Dirk;00001;dirk.weber@example.com;;;;; ;IT;Admin;de_DE;;false;;;"""
+322219;Schmidt;Bob;00160;bob.schmidt@example.com;;;;;;Employee;de_DE;100001;false;;;
+300224;Fischer;Clara;00042;clara.fischer@example.com;;;;;;Manager;de_DE;;false;;01/07/2015;31/12/2025;
+100001;Weber;Dirk;00001;dirk.weber@example.com;;;;;;Admin;de_DE;;false;;;"""
 # pylint: enable=line-too-long
 
 RESPONSE_HEADERS = {
