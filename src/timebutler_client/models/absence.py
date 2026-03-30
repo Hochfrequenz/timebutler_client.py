@@ -6,7 +6,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, computed_field
 
-__all__ = ["Absence", "EuropeanDate", "EmployeeNumber"]
+__all__ = ["Absence", "EuropeanDate", "EmployeeNumber", "UNLIMITED_DATE"]
 
 _EMPLOYEE_NUMBER_PATTERN = r"^\d+$"
 
@@ -14,10 +14,17 @@ _EMPLOYEE_NUMBER_PATTERN = r"^\d+$"
 EmployeeNumber = Annotated[str, Field(pattern=_EMPLOYEE_NUMBER_PATTERN)]
 
 
+#: Sentinel date used when Timebutler returns "unlimited" as a date value.
+#: This occurs e.g. for workday schedules with no defined start date.
+UNLIMITED_DATE = date(1900, 1, 1)
+
+
 def _parse_european_date(value: str | date) -> date:
-    """Parse dd/mm/yyyy format strictly. No lenient parsing."""
+    """Parse dd/mm/yyyy format strictly, with 'unlimited' mapped to 1900-01-01."""
     if isinstance(value, date):
         return value
+    if isinstance(value, str) and value.strip().lower() == "unlimited":
+        return UNLIMITED_DATE
     try:
         return datetime.strptime(value, "%d/%m/%Y").date()
     except ValueError as e:
