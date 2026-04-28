@@ -187,7 +187,7 @@ class TestGetUsers:
             assert exc_info.value.status_code == 500
 
     async def test_get_users_raises_on_malformed_csv(self) -> None:
-        """Verify TimebutlerParseError is raised on malformed CSV."""
+        """Verify TimebutlerParseError is raised when a row has a valid employee number but a non-integer user ID."""
         client = TimebutlerClient(api_key="test-api-key")
 
         with aioresponses() as mocked:
@@ -195,7 +195,7 @@ class TestGetUsers:
                 "https://app.timebutler.com/api/v1/users",
                 status=200,
                 headers=RESPONSE_HEADERS,
-                body="not;valid;csv\nmissing;required;fields",
+                body="User ID;Last name;First name;Employee number\nNOT_AN_INT;Doe;John;00123",
             )
 
             with pytest.raises(TimebutlerParseError):

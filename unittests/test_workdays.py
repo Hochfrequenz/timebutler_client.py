@@ -120,9 +120,10 @@ class TestGetWorkdays:
 
         with aioresponses() as mocked:
             _mock_both(mocked)
-            actual = await client.get_workdays()
+            schedules, invalid = await client.get_workdays()
 
-        assert actual == EXPECTED_SCHEDULES
+        assert schedules == EXPECTED_SCHEDULES
+        assert invalid == []
 
     async def test_get_workdays_sends_auth_to_both_endpoints(self) -> None:
         """Verify auth token is sent to both /workdays and /users."""
@@ -197,11 +198,11 @@ class TestGetWorkdays:
 
         with aioresponses() as mocked:
             _mock_both(mocked)
-            result = await client.get_workdays()
+            schedules, _ = await client.get_workdays()
 
-        assert result[0].employee_number == "00123"  # user 928812
-        assert result[2].employee_number == "00160"  # user 322219
-        assert result[3].employee_number == "00042"  # user 300224
+        assert schedules[0].employee_number == "00123"  # user 928812
+        assert schedules[2].employee_number == "00160"  # user 322219
+        assert schedules[3].employee_number == "00042"  # user 300224
 
     async def test_get_workdays_raises_on_malformed_csv(self) -> None:
         """Verify TimebutlerParseError is raised on malformed workdays CSV."""
@@ -238,9 +239,10 @@ User ID;Last name;First name;Employee number;E-mail address;Phone;Mobile phone;C
 
         with aioresponses() as mocked:
             _mock_both(mocked, workdays_body=empty_workdays_csv)
-            result = await client.get_workdays()
+            schedules, invalid = await client.get_workdays()
 
-        assert result == []
+        assert schedules == []
+        assert invalid == []
 
     async def test_get_workdays_multiple_entries_per_user(self) -> None:
         """Verify multiple schedule entries for the same user are returned."""
@@ -248,9 +250,9 @@ User ID;Last name;First name;Employee number;E-mail address;Phone;Mobile phone;C
 
         with aioresponses() as mocked:
             _mock_both(mocked)
-            result = await client.get_workdays()
+            schedules, _ = await client.get_workdays()
 
-        user_928812_entries = [s for s in result if s.user_id == 928812]
+        user_928812_entries = [s for s in schedules if s.user_id == 928812]
         assert len(user_928812_entries) == 2
         assert all(s.employee_number == "00123" for s in user_928812_entries)
 
