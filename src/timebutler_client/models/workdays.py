@@ -1,12 +1,34 @@
 """Workday schedule model for Timebutler API."""
 
-from datetime import timedelta
+from datetime import date, datetime, timedelta
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, computed_field
 
-from timebutler_client.models.absence import EmployeeNumber, EuropeanDate
+from timebutler_client.models.absence import EmployeeNumber
 
-__all__ = ["WorkdaySchedule"]
+__all__ = ["WorkdaySchedule", "UNLIMITED_DATE"]
+
+#: Sentinel for when Timebutler returns "unlimited" as a workday schedule start date.
+#: "unlimited" means the schedule has been in effect since the very beginning — hence a
+#: date in the distant past, not the future.
+UNLIMITED_DATE = date(1900, 1, 1)
+
+
+def _parse_workday_start_date(value: str | date) -> date:
+    """Parse a workday schedule start date, mapping 'unlimited' to UNLIMITED_DATE."""
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str) and value.strip().lower() == "unlimited":
+        return UNLIMITED_DATE
+    try:
+        return datetime.strptime(value, "%d/%m/%Y").date()
+    except ValueError as e:
+        raise ValueError(f"Date must be in dd/mm/yyyy format, got: {value!r}") from e
+
+
+#: Date type for workday schedule start dates; accepts 'unlimited' in addition to dd/mm/yyyy.
+WorkdayStartDate = Annotated[date, BeforeValidator(_parse_workday_start_date)]
 
 
 class WorkdaySchedule(BaseModel):
@@ -22,7 +44,7 @@ class WorkdaySchedule(BaseModel):
 
     # Critical fields - strictly validated
     user_id: int
-    valid_from: EuropeanDate = Field(description="Date from which this schedule is valid (inclusive)")
+    valid_from: WorkdayStartDate = Field(description="Date from which this schedule is valid (inclusive)")
     employee_number: EmployeeNumber = Field(description="Employee number with leading zeros, e.g. '00123'")
 
     # Good to have - relaxed validation with defaults
