@@ -16,7 +16,7 @@ from timebutler_client.exceptions import (
     TimebutlerRateLimitError,
     TimebutlerServerError,
 )
-from timebutler_client.models import Absence, InvalidEmployee, Project, Service, User, WorkdaySchedule, WorktimeEntry
+from timebutler_client.models import Absence, InvalidEmployee, Project, Service, User, WorkdaySchedule, WorkdaysResult, WorktimeEntry
 
 logger = logging.getLogger(__name__)
 _EMPLOYEE_NUMBER_PATTERN = re.compile(r"^\d+$")
@@ -274,7 +274,7 @@ class TimebutlerClient(BaseModel):
                 csv_text = await response.text()
                 return self._parse_worktime_csv(csv_text)
 
-    async def get_workdays(self) -> tuple[list[WorkdaySchedule], list[InvalidEmployee]]:
+    async def get_workdays(self) -> WorkdaysResult:
         """
         Fetch workday schedules for all users, enriched with employee numbers.
 
@@ -282,10 +282,10 @@ class TimebutlerClient(BaseModel):
         the employee number for each user ID.
 
         Returns:
-            Tuple of (valid WorkdaySchedule objects, invalid employee records).
+            WorkdaysResult with schedules and invalid_employees.
+            Both lists preserve API response order and are not sorted.
             Workday entries for users with unparseable employee numbers are
-            silently dropped; the caller receives them as InvalidEmployee objects
-            and can surface them as structured errors.
+            excluded from schedules and returned as InvalidEmployee objects instead.
 
         Raises:
             TimebutlerAuthenticationError: If API key is invalid
@@ -314,7 +314,7 @@ class TimebutlerClient(BaseModel):
         invalid_user_ids: set[int] = {inv.user_id for inv in invalid_employees if inv.user_id is not None}
         employee_number_map: dict[int, str] = {u.user_id: u.employee_number for u in users}
         schedules = self._parse_workdays_csv(workdays_csv, employee_number_map, skip_user_ids=invalid_user_ids)
-        return schedules, invalid_employees
+        return WorkdaysResult(schedules=schedules, invalid_employees=invalid_employees)
 
     def _parse_workdays_csv(
         self,

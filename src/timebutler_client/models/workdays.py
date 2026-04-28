@@ -6,8 +6,9 @@ from typing import Annotated
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, computed_field
 
 from timebutler_client.models.absence import EmployeeNumber
+from timebutler_client.models.invalid_employee import InvalidEmployee
 
-__all__ = ["WorkdaySchedule", "UNLIMITED_DATE"]
+__all__ = ["WorkdaySchedule", "WorkdaysResult", "UNLIMITED_DATE"]
 
 #: Sentinel for when Timebutler returns "unlimited" as a workday schedule start date.
 #: "unlimited" means the schedule has been in effect since the very beginning — hence a
@@ -118,3 +119,12 @@ class WorkdaySchedule(BaseModel):
     def weekly_duration(self) -> timedelta:
         """Total working time per week as timedelta."""
         return timedelta(minutes=self.weekly_minutes)
+
+
+class WorkdaysResult(BaseModel):
+    """Return value of TimebutlerClient.get_workdays()."""
+
+    model_config = ConfigDict(frozen=True)
+
+    schedules: list[WorkdaySchedule]
+    invalid_employees: list[InvalidEmployee]
