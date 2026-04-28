@@ -441,7 +441,7 @@ class TimebutlerClient(BaseModel):
                     cost_center=row.get("Cost center", "").strip(),
                     branch_office=row.get("Branch office", "").strip(),
                     department=row.get("Department", "").strip(),
-                    user_type=row.get("User type", "").strip(),
+                    user_type=row.get("User type", "").strip() or None,  # type: ignore[arg-type]
                     language=row.get("Language", "").strip(),
                     manager_user_ids=row.get("User ID list of the user's manager", ""),  # type: ignore[arg-type]
                     account_locked=row.get("User account locked", "").lower() == "true",

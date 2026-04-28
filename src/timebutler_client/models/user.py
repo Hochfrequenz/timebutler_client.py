@@ -26,7 +26,7 @@ def _parse_optional_european_date(value: str | date | None) -> date | None:
 OptionalEuropeanDate = Annotated[date | None, BeforeValidator(_parse_optional_european_date)]
 
 
-def _parse_manager_user_ids(value: str | list | tuple) -> tuple[int, ...]:
+def _parse_manager_user_ids(value: str | list[int] | tuple[int, ...]) -> tuple[int, ...]:
     """Parse a comma-separated string of user IDs into a tuple of ints."""
     if isinstance(value, tuple):
         return value
