@@ -26,17 +26,19 @@ def _parse_optional_european_date(value: str | date | None) -> date | None:
 OptionalEuropeanDate = Annotated[date | None, BeforeValidator(_parse_optional_european_date)]
 
 
-def _parse_manager_user_ids(value: str | list) -> list[int]:
-    """Parse a comma-separated string of user IDs into a list of ints."""
-    if isinstance(value, list):
+def _parse_manager_user_ids(value: str | list | tuple) -> tuple[int, ...]:
+    """Parse a comma-separated string of user IDs into a tuple of ints."""
+    if isinstance(value, tuple):
         return value
+    if isinstance(value, list):
+        return tuple(value)
     if not value or not value.strip():
-        return []
-    return [int(uid.strip()) for uid in value.split(",") if uid.strip()]
+        return ()
+    return tuple(int(uid.strip()) for uid in value.split(",") if uid.strip())
 
 
 #: Annotated type for a comma-separated list of user IDs
-ManagerUserIds = Annotated[list[int], BeforeValidator(_parse_manager_user_ids)]
+ManagerUserIds = Annotated[tuple[int, ...], BeforeValidator(_parse_manager_user_ids)]
 
 
 class User(BaseModel):
@@ -59,7 +61,7 @@ class User(BaseModel):
     department: str = ""
     user_type: Literal["Employee", "Manager", "Admin"] | None = None
     language: str = ""
-    manager_user_ids: ManagerUserIds = []
+    manager_user_ids: ManagerUserIds = ()
     account_locked: bool = False
     additional_information: str = ""
     date_of_entry: OptionalEuropeanDate = None

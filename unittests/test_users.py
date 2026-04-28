@@ -45,7 +45,7 @@ EXPECTED_USERS: list[User] = [
         department="Engineering",
         user_type="Employee",
         language="de_DE",
-        manager_user_ids=[100001],
+        manager_user_ids=(100001,),
         account_locked=False,
         additional_information="Senior Dev",
         date_of_entry=date(2019, 3, 1),
@@ -60,7 +60,7 @@ EXPECTED_USERS: list[User] = [
         email="bob.schmidt@example.com",
         user_type="Employee",
         language="de_DE",
-        manager_user_ids=[100001],
+        manager_user_ids=(100001,),
     ),
     User(
         user_id=300224,
@@ -252,7 +252,7 @@ class TestUserComputedProperties:
             employee_number="00001",
             manager_user_ids="100001,100002",  # type: ignore[arg-type]
         )
-        assert user.manager_user_ids == [100001, 100002]
+        assert user.manager_user_ids == (100001, 100002)
 
     def test_optional_dates_accept_none_and_empty_string(self) -> None:
         """Verify optional date fields accept None and empty strings."""
