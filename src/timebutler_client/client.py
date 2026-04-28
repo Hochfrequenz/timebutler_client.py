@@ -398,7 +398,16 @@ class TimebutlerClient(BaseModel):
             ) as response:
                 await self._check_response(response)
                 csv_text = await response.text()
-                users, _ = self._parse_users_csv(csv_text)
+                users, invalid_employees = self._parse_users_csv(csv_text)
+                if invalid_employees:
+                    logger.warning(
+                        "Skipped %d user(s) with missing or non-numeric employee numbers: %s",
+                        len(invalid_employees),
+                        [
+                            f"{e.display_name} (user_id={e.user_id}, raw={e.raw_employee_number!r})"
+                            for e in invalid_employees
+                        ],
+                    )
                 return users
 
     def _parse_users_csv(self, csv_text: str) -> tuple[list[User], list[InvalidEmployee]]:
