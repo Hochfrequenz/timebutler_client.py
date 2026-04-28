@@ -339,13 +339,33 @@ class TimebutlerClient(BaseModel):
                     user_id=user_id,
                     valid_from=row["Valid from (dd/mm/yyyy)"],  # type: ignore[arg-type]  # BeforeValidator handles str->date
                     employee_number=employee_number,
-                    monday_minutes=int(row["Monday working time in minutes"]) if row.get("Monday working time in minutes") else 0,
-                    tuesday_minutes=int(row["Tuesday working time in minutes"]) if row.get("Tuesday working time in minutes") else 0,
-                    wednesday_minutes=int(row["Wednesday working time in minutes"]) if row.get("Wednesday working time in minutes") else 0,
-                    thursday_minutes=int(row["Thursday working time in minutes"]) if row.get("Thursday working time in minutes") else 0,
-                    friday_minutes=int(row["Friday working time in minutes"]) if row.get("Friday working time in minutes") else 0,
-                    saturday_minutes=int(row["Saturday working time in minutes"]) if row.get("Saturday working time in minutes") else 0,
-                    sunday_minutes=int(row["Sunday working time in minutes"]) if row.get("Sunday working time in minutes") else 0,
+                    monday_minutes=(
+                        int(row["Monday working time in minutes"]) if row.get("Monday working time in minutes") else 0
+                    ),
+                    tuesday_minutes=(
+                        int(row["Tuesday working time in minutes"]) if row.get("Tuesday working time in minutes") else 0
+                    ),
+                    wednesday_minutes=(
+                        int(row["Wednesday working time in minutes"])
+                        if row.get("Wednesday working time in minutes")
+                        else 0
+                    ),
+                    thursday_minutes=(
+                        int(row["Thursday working time in minutes"])
+                        if row.get("Thursday working time in minutes")
+                        else 0
+                    ),
+                    friday_minutes=(
+                        int(row["Friday working time in minutes"]) if row.get("Friday working time in minutes") else 0
+                    ),
+                    saturday_minutes=(
+                        int(row["Saturday working time in minutes"])
+                        if row.get("Saturday working time in minutes")
+                        else 0
+                    ),
+                    sunday_minutes=(
+                        int(row["Sunday working time in minutes"]) if row.get("Sunday working time in minutes") else 0
+                    ),
                     holiday_set_id=int(row["ID of the holiday set"]) if row.get("ID of the holiday set") else 0,
                 )
                 schedules.append(schedule)
