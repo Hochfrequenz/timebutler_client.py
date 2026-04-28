@@ -1,7 +1,7 @@
 """User model for Timebutler API."""
 
 from datetime import date, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, computed_field
 
@@ -40,11 +40,7 @@ ManagerUserIds = Annotated[list[int], BeforeValidator(_parse_manager_user_ids)]
 
 
 class User(BaseModel):
-    """
-    Represents a user from Timebutler.
-
-    User type can be one of: Employee, Manager, Admin.
-    """
+    """Represents a user from Timebutler."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -61,7 +57,7 @@ class User(BaseModel):
     cost_center: str = ""
     branch_office: str = ""
     department: str = ""
-    user_type: str = ""
+    user_type: Literal["Employee", "Manager", "Admin"] | None = None
     language: str = ""
     manager_user_ids: ManagerUserIds = []
     account_locked: bool = False
