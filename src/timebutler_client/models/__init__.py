@@ -8,4 +8,13 @@ from timebutler_client.models.user import User
 from timebutler_client.models.workdays import WorkdaySchedule, WorkdaysResult
 from timebutler_client.models.worktime import WorktimeEntry
 
-__all__ = ["Absence", "InvalidEmployee", "Project", "Service", "User", "WorkdaySchedule", "WorkdaysResult", "WorktimeEntry"]
+__all__ = [
+    "Absence",
+    "InvalidEmployee",
+    "Project",
+    "Service",
+    "User",
+    "WorkdaySchedule",
+    "WorkdaysResult",
+    "WorktimeEntry",
+]

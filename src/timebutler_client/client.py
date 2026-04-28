@@ -16,7 +16,16 @@ from timebutler_client.exceptions import (
     TimebutlerRateLimitError,
     TimebutlerServerError,
 )
-from timebutler_client.models import Absence, InvalidEmployee, Project, Service, User, WorkdaySchedule, WorkdaysResult, WorktimeEntry
+from timebutler_client.models import (
+    Absence,
+    InvalidEmployee,
+    Project,
+    Service,
+    User,
+    WorkdaySchedule,
+    WorkdaysResult,
+    WorktimeEntry,
+)
 
 logger = logging.getLogger(__name__)
 _EMPLOYEE_NUMBER_PATTERN = re.compile(r"^\d+$")
