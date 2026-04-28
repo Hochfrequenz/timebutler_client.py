@@ -7,10 +7,6 @@ import re
 from decimal import Decimal
 from io import StringIO
 
-logger = logging.getLogger(__name__)
-
-_EMPLOYEE_NUMBER_PATTERN = re.compile(r"^\d+$")
-
 import aiohttp
 from pydantic import BaseModel, PrivateAttr
 
@@ -21,6 +17,9 @@ from timebutler_client.exceptions import (
     TimebutlerServerError,
 )
 from timebutler_client.models import Absence, InvalidEmployee, Project, Service, User, WorkdaySchedule, WorktimeEntry
+
+logger = logging.getLogger(__name__)
+_EMPLOYEE_NUMBER_PATTERN = re.compile(r"^\d+$")
 
 
 class TimebutlerClient(BaseModel):
@@ -337,7 +336,7 @@ class TimebutlerClient(BaseModel):
                     raise TimebutlerParseError(f"No user found for user ID {user_id} in users response")
                 schedule = WorkdaySchedule(
                     user_id=user_id,
-                    valid_from=row["Valid from (dd/mm/yyyy)"],  # type: ignore[arg-type]  # BeforeValidator handles str->date
+                    valid_from=row["Valid from (dd/mm/yyyy)"],  # type: ignore[arg-type]
                     employee_number=employee_number,
                     monday_minutes=(
                         int(row["Monday working time in minutes"]) if row.get("Monday working time in minutes") else 0
@@ -371,8 +370,6 @@ class TimebutlerClient(BaseModel):
                 schedules.append(schedule)
 
             return schedules
-        except TimebutlerParseError:
-            raise
         except (KeyError, ValueError) as e:
             raise TimebutlerParseError(f"Failed to parse API response: {e}") from e
 
@@ -437,12 +434,14 @@ class TimebutlerClient(BaseModel):
                     department=row.get("Department", "").strip(),
                     user_type=row.get("User type", "").strip(),
                     language=row.get("Language", "").strip(),
-                    manager_user_ids=row.get("User ID list of the user's manager", ""),  # type: ignore[arg-type]  # BeforeValidator handles str->list
+                    manager_user_ids=row.get("User ID list of the user's manager", ""),  # type: ignore[arg-type]
                     account_locked=row.get("User account locked", "").lower() == "true",
                     additional_information=row.get("Additional Information", "").strip(),
-                    date_of_entry=row.get("Date of entry (dd/mm/yyyy)", ""),  # type: ignore[arg-type]  # BeforeValidator handles str->date|None
-                    date_of_separation=row.get("Date of separation from company (dd/mm/yyyy)", ""),  # type: ignore[arg-type]  # BeforeValidator handles str->date|None
-                    date_of_birth=row.get("Day of birth (dd/mm/yyyy)", ""),  # type: ignore[arg-type]  # BeforeValidator handles str->date|None
+                    date_of_entry=row.get("Date of entry (dd/mm/yyyy)", ""),  # type: ignore[arg-type]
+                    date_of_separation=row.get(  # type: ignore[arg-type]
+                        "Date of separation from company (dd/mm/yyyy)", ""
+                    ),
+                    date_of_birth=row.get("Day of birth (dd/mm/yyyy)", ""),  # type: ignore[arg-type]
                 )
                 users.append(user)
 
