@@ -2,8 +2,14 @@
 
 import asyncio
 import csv
+import logging
+import re
 from decimal import Decimal
 from io import StringIO
+
+logger = logging.getLogger(__name__)
+
+_EMPLOYEE_NUMBER_PATTERN = re.compile(r"^\d+$")
 
 import aiohttp
 from pydantic import BaseModel, PrivateAttr
@@ -14,7 +20,7 @@ from timebutler_client.exceptions import (
     TimebutlerRateLimitError,
     TimebutlerServerError,
 )
-from timebutler_client.models import Absence, Project, Service, User, WorkdaySchedule, WorktimeEntry
+from timebutler_client.models import Absence, InvalidEmployee, Project, Service, User, WorkdaySchedule, WorktimeEntry
 
 
 class TimebutlerClient(BaseModel):
@@ -269,7 +275,7 @@ class TimebutlerClient(BaseModel):
                 csv_text = await response.text()
                 return self._parse_worktime_csv(csv_text)
 
-    async def get_workdays(self) -> list[WorkdaySchedule]:
+    async def get_workdays(self) -> tuple[list[WorkdaySchedule], list[InvalidEmployee]]:
         """
         Fetch workday schedules for all users, enriched with employee numbers.
 
@@ -277,15 +283,16 @@ class TimebutlerClient(BaseModel):
         the employee number for each user ID.
 
         Returns:
-            List of WorkdaySchedule objects. A user may appear multiple times
-            if their schedule changed over time.
+            Tuple of (valid WorkdaySchedule objects, invalid employee records).
+            Workday entries for users with unparseable employee numbers are
+            silently dropped; the caller receives them as InvalidEmployee objects
+            and can surface them as structured errors.
 
         Raises:
             TimebutlerAuthenticationError: If API key is invalid
             TimebutlerRateLimitError: If rate limit is exceeded
             TimebutlerServerError: If server returns 5xx error
-            TimebutlerParseError: If response cannot be parsed, or if a user ID
-                from workdays has no matching entry in the users response
+            TimebutlerParseError: If response cannot be parsed
 
         Note:
             Despite being named 'get_', this calls POST endpoints
@@ -304,11 +311,18 @@ class TimebutlerClient(BaseModel):
 
             workdays_csv, users_csv = await asyncio.gather(_fetch("workdays"), _fetch("users"))
 
-        users = self._parse_users_csv(users_csv)
+        users, invalid_employees = self._parse_users_csv(users_csv)
+        invalid_user_ids: set[int] = {inv.user_id for inv in invalid_employees if inv.user_id is not None}
         employee_number_map: dict[int, str] = {u.user_id: u.employee_number for u in users}
-        return self._parse_workdays_csv(workdays_csv, employee_number_map)
+        schedules = self._parse_workdays_csv(workdays_csv, employee_number_map, skip_user_ids=invalid_user_ids)
+        return schedules, invalid_employees
 
-    def _parse_workdays_csv(self, csv_text: str, employee_number_map: dict[int, str]) -> list[WorkdaySchedule]:
+    def _parse_workdays_csv(
+        self,
+        csv_text: str,
+        employee_number_map: dict[int, str],
+        skip_user_ids: set[int] | None = None,
+    ) -> list[WorkdaySchedule]:
         """Parse semicolon-delimited CSV into WorkdaySchedule models."""
         try:
             reader = csv.DictReader(StringIO(csv_text), delimiter=";")
@@ -316,6 +330,8 @@ class TimebutlerClient(BaseModel):
 
             for row in reader:
                 user_id = int(row["User ID"])
+                if skip_user_ids and user_id in skip_user_ids:
+                    continue
                 employee_number = employee_number_map.get(user_id)
                 if employee_number is None:
                     raise TimebutlerParseError(f"No user found for user ID {user_id} in users response")
@@ -365,20 +381,34 @@ class TimebutlerClient(BaseModel):
             ) as response:
                 await self._check_response(response)
                 csv_text = await response.text()
-                return self._parse_users_csv(csv_text)
+                users, _ = self._parse_users_csv(csv_text)
+                return users
 
-    def _parse_users_csv(self, csv_text: str) -> list[User]:
+    def _parse_users_csv(self, csv_text: str) -> tuple[list[User], list[InvalidEmployee]]:
         """Parse semicolon-delimited CSV into User models."""
         try:
             reader = csv.DictReader(StringIO(csv_text), delimiter=";")
             users: list[User] = []
+            invalid_employees: list[InvalidEmployee] = []
 
             for row in reader:
+                raw_employee_number = row.get("Employee number", "").strip()
+                raw_user_id = row.get("User ID", "").strip()
+                if not _EMPLOYEE_NUMBER_PATTERN.match(raw_employee_number):
+                    invalid_employees.append(
+                        InvalidEmployee(
+                            user_id=int(raw_user_id) if raw_user_id.isdigit() else None,
+                            first_name=row.get("First name", "").strip(),
+                            last_name=row.get("Last name", "").strip(),
+                            raw_employee_number=raw_employee_number,
+                        )
+                    )
+                    continue
                 user = User(
                     user_id=int(row["User ID"]),
                     last_name=row["Last name"],
                     first_name=row["First name"],
-                    employee_number=row["Employee number"],
+                    employee_number=raw_employee_number,
                     email=row.get("E-mail address", "").strip(),
                     phone=row.get("Phone", "").strip(),
                     mobile_phone=row.get("Mobile phone", "").strip(),
@@ -396,7 +426,7 @@ class TimebutlerClient(BaseModel):
                 )
                 users.append(user)
 
-            return users
+            return users, invalid_employees
         except (KeyError, ValueError) as e:
             raise TimebutlerParseError(f"Failed to parse API response: {e}") from e
 

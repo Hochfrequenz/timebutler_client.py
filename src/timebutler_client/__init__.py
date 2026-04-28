@@ -9,13 +9,14 @@ from timebutler_client.exceptions import (
     TimebutlerRateLimitError,
     TimebutlerServerError,
 )
-from timebutler_client.models import Absence, Project, Service, User, WorkdaySchedule, WorktimeEntry
+from timebutler_client.models import Absence, InvalidEmployee, Project, Service, User, WorkdaySchedule, WorktimeEntry
 from timebutler_client.models.absence import EmployeeNumber, EuropeanDate
 from timebutler_client.models.worktime import HHMMTime
 
 __all__ = [
     "TimebutlerClient",
     "Absence",
+    "InvalidEmployee",
     "Project",
     "Service",
     "User",
