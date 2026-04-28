@@ -378,7 +378,7 @@ class TimebutlerClient(BaseModel):
         Fetch all users.
 
         Returns:
-            List of User objects.
+            List of User objects in API response order; not sorted.
 
         Raises:
             TimebutlerAuthenticationError: If API key is invalid
