@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
-class InvalidEmployee(BaseModel, frozen=True):
+class InvalidEmployee(BaseModel):
     """
     An employee record from Timebutler whose employee_number could not be parsed.
 
     Returned alongside valid users so callers can surface the problem without
     crashing the entire sync.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     user_id: int | None
     first_name: str
@@ -20,4 +22,5 @@ class InvalidEmployee(BaseModel, frozen=True):
 
     @property
     def display_name(self) -> str:
+        """Full name as 'First Last'."""
         return f"{self.first_name} {self.last_name}".strip()
