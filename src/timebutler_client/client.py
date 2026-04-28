@@ -284,7 +284,7 @@ class TimebutlerClient(BaseModel):
         Returns:
             WorkdaysResult with schedules and invalid_employees.
             Both lists preserve API response order and are not sorted.
-            Workday entries for users with unparseable employee numbers are
+            Workday entries for users with unparsable employee numbers are
             excluded from schedules and returned as InvalidEmployee objects instead.
 
         Raises:
