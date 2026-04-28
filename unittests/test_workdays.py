@@ -93,7 +93,9 @@ EXPECTED_SCHEDULES: list[WorkdaySchedule] = [
 ]
 
 
-def _mock_both(mocked: aioresponses, *, workdays_body: str = SAMPLE_WORKDAYS_CSV, users_body: str = SAMPLE_USERS_CSV) -> None:
+def _mock_both(
+    mocked: aioresponses, *, workdays_body: str = SAMPLE_WORKDAYS_CSV, users_body: str = SAMPLE_USERS_CSV
+) -> None:
     """Register mocks for both /workdays and /users endpoints."""
     mocked.post(
         "https://app.timebutler.com/api/v1/workdays",

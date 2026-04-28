@@ -236,7 +236,9 @@ class TestUserComputedProperties:
 
     def test_is_active_property(self) -> None:
         """Verify is_active reflects account_locked state."""
-        active_user = User(user_id=1, last_name="Test", first_name="User", employee_number="00001", account_locked=False)
+        active_user = User(
+            user_id=1, last_name="Test", first_name="User", employee_number="00001", account_locked=False
+        )
         locked_user = User(user_id=2, last_name="Test", first_name="User", employee_number="00002", account_locked=True)
         assert active_user.is_active is True
         assert locked_user.is_active is False
