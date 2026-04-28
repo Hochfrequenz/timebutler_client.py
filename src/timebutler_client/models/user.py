@@ -1,11 +1,11 @@
 """User model for Timebutler API."""
 
-from datetime import date, datetime
+from datetime import date
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, computed_field
 
-from timebutler_client.models.absence import EmployeeNumber
+from timebutler_client.models.absence import EmployeeNumber, _parse_european_date
 
 __all__ = ["User"]
 
@@ -14,12 +14,7 @@ def _parse_optional_european_date(value: str | date | None) -> date | None:
     """Parse dd/mm/yyyy format, returning None for empty/missing values."""
     if value is None or (isinstance(value, str) and not value.strip()):
         return None
-    if isinstance(value, date):
-        return value
-    try:
-        return datetime.strptime(value, "%d/%m/%Y").date()
-    except ValueError as e:
-        raise ValueError(f"Date must be in dd/mm/yyyy format, got: {value!r}") from e
+    return _parse_european_date(value)
 
 
 #: Annotated type for optional dates in European dd/mm/yyyy format (empty string → None)
