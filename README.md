@@ -51,7 +51,15 @@ for absence in absences:
 | `get_absences(year)` | Fetch absences for a given year |
 | `get_projects()` | Fetch all projects |
 | `get_services()` | Fetch all services |
+| `get_users()` | Fetch all users |
+| `get_workdays()` | Fetch workday schedules for all users (see note below) |
 | `get_worktime(year?, month?, user_id?)` | Fetch worktime entries with optional filters |
+
+> [!NOTE]
+> `get_workdays()` returns a tuple `(list[WorkdaySchedule], list[InvalidEmployee])`.
+> The second element contains users whose `employee_number` field in Timebutler is empty or
+> non-numeric. These users are excluded from the schedules list so callers can handle them
+> explicitly (e.g. log a warning or surface them as sync errors) rather than crashing.
 
 ### Example: Tracking Time by Project
 
