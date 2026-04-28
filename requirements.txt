@@ -6,19 +6,19 @@
 #
 aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.13.3
+aiohttp==3.13.5
     # via timebutler_client (pyproject.toml)
 aiosignal==1.4.0
     # via aiohttp
 annotated-types==0.7.0
     # via pydantic
-attrs==25.4.0
+attrs==26.1.0
     # via aiohttp
 frozenlist==1.8.0
     # via
     #   aiohttp
     #   aiosignal
-idna==3.11
+idna==3.13
     # via yarl
 multidict==6.7.1
     # via
