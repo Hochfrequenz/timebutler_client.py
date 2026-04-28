@@ -1,11 +1,11 @@
 """Workday schedule model for Timebutler API."""
 
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Annotated
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, computed_field
 
-from timebutler_client.models.absence import EmployeeNumber
+from timebutler_client.models.absence import EmployeeNumber, _parse_european_date
 from timebutler_client.models.invalid_employee import InvalidEmployee
 
 __all__ = ["WorkdaySchedule", "WorkdaysResult", "UNLIMITED_DATE"]
@@ -18,14 +18,9 @@ UNLIMITED_DATE = date(1900, 1, 1)
 
 def _parse_workday_start_date(value: str | date) -> date:
     """Parse a workday schedule start date, mapping 'unlimited' to UNLIMITED_DATE."""
-    if isinstance(value, date):
-        return value
     if isinstance(value, str) and value.strip().lower() == "unlimited":
         return UNLIMITED_DATE
-    try:
-        return datetime.strptime(value, "%d/%m/%Y").date()
-    except ValueError as e:
-        raise ValueError(f"Date must be in dd/mm/yyyy format, got: {value!r}") from e
+    return _parse_european_date(value)
 
 
 #: Date type for workday schedule start dates; accepts 'unlimited' in addition to dd/mm/yyyy.
