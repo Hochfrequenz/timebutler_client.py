@@ -15,7 +15,7 @@ EmployeeNumber = Annotated[str, Field(pattern=_EMPLOYEE_NUMBER_PATTERN)]
 
 
 def _parse_european_date(value: str | date) -> date:
-    """Parse dd/mm/yyyy format strictly. No lenient parsing."""
+    """Parse dd/mm/yyyy format strictly."""
     if isinstance(value, date):
         return value
     try:

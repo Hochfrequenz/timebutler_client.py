@@ -51,7 +51,16 @@ for absence in absences:
 | `get_absences(year)` | Fetch absences for a given year |
 | `get_projects()` | Fetch all projects |
 | `get_services()` | Fetch all services |
+| `get_users()` | Fetch all users |
+| `get_workdays()` | Fetch workday schedules for all users (see note below) |
 | `get_worktime(year?, month?, user_id?)` | Fetch worktime entries with optional filters |
+
+> [!NOTE]
+> `get_workdays()` returns a `WorkdaysResult` with two named fields: `schedules` and `invalid_employees`.
+> `invalid_employees` contains users whose `employee_number` field in Timebutler is empty or non-numeric.
+> This is expected — it occurs for DC users on test systems and for new employees who are not yet fully
+> set up in production. Because employee numbers are mandatory for downstream processing, these users are
+> filtered out here rather than propagating incomplete data further along the pipeline.
 
 ### Example: Tracking Time by Project
 
