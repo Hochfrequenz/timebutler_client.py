@@ -99,9 +99,11 @@ uv run --group tests pytest
 
 # Run linting
 uv run --group linting pylint timebutler_client
+uv run --group linting pylint unittests --rcfile=unittests/.pylintrc
 
 # Run type checking
 uv run --group type_check mypy --strict src/timebutler_client
+uv run --group type_check mypy --strict unittests
 ```
 
 ## License

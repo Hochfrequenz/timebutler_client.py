@@ -41,7 +41,7 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/src
         run: |
           uv run --group coverage coverage run -m pytest
-          uv run --group coverage coverage report --fail-under 80 --omit .tox/*,unittests/*
+          uv run --group coverage coverage report --fail-under 80 --omit unittests/*
 
   build-n-publish:
     name: Build and publish Python distributions to PyPI
