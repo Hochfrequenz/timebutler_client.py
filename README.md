@@ -86,22 +86,22 @@ for entry in worktime:
 ## Development
 
 This project is based on the [Hochfrequenz Python Template Repository](https://github.com/Hochfrequenz/python_template_repository).
-Refer to that repository for detailed setup instructions including tox configuration and IDE setup.
+Refer to that repository for detailed setup instructions including [uv](https://docs.astral.sh/uv/) configuration and IDE setup.
 
 ### Quick Start
 
 ```bash
 # Create dev environment
-tox -e dev
+uv sync --group dev
 
 # Run tests
-tox -e tests
+uv run --group tests pytest
 
 # Run linting
-tox -e linting
+uv run --group linting pylint timebutler_client
 
 # Run type checking
-tox -e type_check
+uv run --group type_check mypy --strict src/timebutler_client
 ```
 
 ## License
