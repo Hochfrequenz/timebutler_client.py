@@ -10,6 +10,7 @@ jobs:
   # in this repo's branch ruleset - renaming them would leave those required
   # checks permanently pending. Rename together with the ruleset if desired.
   format:
+    name: "format (${{ matrix.tool }})"
     runs-on: ubuntu-latest
     strategy:
       matrix:
