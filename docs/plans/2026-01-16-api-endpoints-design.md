@@ -178,6 +178,7 @@ async def get_projects(self) -> list[Project]:
         TimebutlerParseError: If response cannot be parsed
     """
 
+
 async def get_services(self) -> list[Service]:
     """
     Fetch all services.
@@ -191,6 +192,7 @@ async def get_services(self) -> list[Service]:
         TimebutlerServerError: If server returns 5xx error
         TimebutlerParseError: If response cannot be parsed
     """
+
 
 async def get_worktime(
     self,

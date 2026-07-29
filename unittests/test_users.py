@@ -118,7 +118,7 @@ class TestGetUsers:
 
             await client.get_users()
 
-            calls = list(mocked.requests.values())[0]
+            calls = next(iter(mocked.requests.values()))
             assert len(calls) == 1
             request_data = calls[0].kwargs.get("data", {})
             assert request_data["auth"] == "my-secret-key"
@@ -137,7 +137,7 @@ class TestGetUsers:
 
             await client.get_users()
 
-            calls = list(mocked.requests.values())[0]
+            calls = next(iter(mocked.requests.values()))
             request_data = calls[0].kwargs.get("data", {})
             assert set(request_data.keys()) == {"auth"}
 

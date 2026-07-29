@@ -6,7 +6,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, computed_field
 
-__all__ = ["Absence", "EuropeanDate", "EmployeeNumber"]
+__all__ = ["Absence", "EmployeeNumber", "EuropeanDate"]
 
 _EMPLOYEE_NUMBER_PATTERN = r"^\d+$"
 

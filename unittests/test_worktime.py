@@ -163,7 +163,7 @@ class TestGetWorktime:
 
             await client.get_worktime()
 
-            calls = list(mocked.requests.values())[0]
+            calls = next(iter(mocked.requests.values()))
             assert len(calls) == 1
             request_data = calls[0].kwargs.get("data", {})
             assert request_data["auth"] == "my-secret-key"
@@ -182,7 +182,7 @@ class TestGetWorktime:
 
             await client.get_worktime(year=2026, month=1)
 
-            calls = list(mocked.requests.values())[0]
+            calls = next(iter(mocked.requests.values()))
             request_data = calls[0].kwargs.get("data", {})
             assert request_data["year"] == "2026"
             assert request_data["month"] == "1"
@@ -201,7 +201,7 @@ class TestGetWorktime:
 
             await client.get_worktime(user_id=998877)
 
-            calls = list(mocked.requests.values())[0]
+            calls = next(iter(mocked.requests.values()))
             request_data = calls[0].kwargs.get("data", {})
             assert request_data["userid"] == "998877"
 
@@ -219,7 +219,7 @@ class TestGetWorktime:
 
             await client.get_worktime()
 
-            calls = list(mocked.requests.values())[0]
+            calls = next(iter(mocked.requests.values()))
             request_data = calls[0].kwargs.get("data", {})
             assert "year" not in request_data
             assert "month" not in request_data

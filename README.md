@@ -98,8 +98,10 @@ uv sync --group dev
 uv run --group tests pytest
 
 # Run linting
-uv run --group linting pylint timebutler_client
-uv run --group linting pylint unittests --rcfile=unittests/.pylintrc
+uv run --group linting ruff check src/timebutler_client unittests
+
+# Run formatting checks
+uv run --group linting ruff format --check .
 
 # Run type checking
 uv run --group type_check mypy --strict src/timebutler_client

@@ -1,11 +1,11 @@
 """Custom exceptions for the Timebutler client."""
 
 __all__ = [
-    "TimebutlerError",
     "TimebutlerAuthenticationError",
+    "TimebutlerError",
+    "TimebutlerParseError",
     "TimebutlerRateLimitError",
     "TimebutlerServerError",
-    "TimebutlerParseError",
 ]
 
 

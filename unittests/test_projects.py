@@ -105,7 +105,7 @@ class TestGetProjects:
 
             await client.get_projects()
 
-            calls = list(mocked.requests.values())[0]
+            calls = next(iter(mocked.requests.values()))
             assert len(calls) == 1
             request_data = calls[0].kwargs.get("data", {})
             assert request_data["auth"] == "my-secret-key"
