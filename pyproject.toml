@@ -32,7 +32,7 @@ tests = [
     "aiohttp<3.14", # aioresponses 0.7.x mocks aiohttp internals incompatible with 3.14's ClientResponse signature
 ]
 linting = [
-    "pylint==4.0.6",
+    "ruff==0.16.0",
     { include-group = "tests" },
 ]
 type_check = [
@@ -46,17 +46,12 @@ coverage = [
     "coverage==7.15.2",
     { include-group = "tests" },
 ]
-formatting = [
-    "black==26.5.1",
-    "isort==8.0.1"
-]
 dev = [
     { include-group = "tests" },
     { include-group = "linting" },
     { include-group = "type_check" },
     { include-group = "coverage" },
     { include-group = "spell_check" },
-    { include-group = "formatting" },
     "pre-commit",
 ]
 
@@ -67,16 +62,38 @@ default-groups = []
 Changelog = "https://github.com/Hochfrequenz/timebutler_client.py/releases"
 Homepage = "https://github.com/Hochfrequenz/timebutler_client.py"
 
-[tool.black]
+[tool.ruff]
 line-length = 120
-target_version = ["py311", "py312", "py313", "py314"]
 
-[tool.isort]
-line_length = 120
-profile = "black"
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # isort
+  "UP",  # pyupgrade
+  "B",   # flake8-bugbear
+  "N",   # pep8-naming
+  "PL",  # pylint
+  "RUF", # ruff-specific rules
+]
+ignore = [
+  "PLR0913", # too-many-arguments - not enforced under the old pylint config either
+  "PLR0917", # too-many-positional-arguments
+  "PLR0912", # too-many-branches
+  "PLR0915", # too-many-statements
+  "PLR2004", # magic-value-comparison
+]
 
-[tool.pylint."MESSAGES CONTROL"]
-max-line-length = 120
+[tool.ruff.lint.per-file-ignores]
+# these files embed long CSV fixture strings (some as interior lines of a
+# triple-quoted literal, where a trailing noqa comment isn't possible at
+# all without corrupting the fixture content); same intent as the removed
+# `# pylint: disable=line-too-long` / `enable=line-too-long` block pairs
+"unittests/test_absences.py" = ["E501"]
+"unittests/test_users.py" = ["E501"]
+"unittests/test_workdays.py" = ["E501"]
+"unittests/test_worktime.py" = ["E501"]
 
 [mypy]
 truethy-bool = true

@@ -5,11 +5,20 @@ on:
     branches: [main]
   pull_request: {}
 jobs:
+  # Matrix values are kept as "black"/"isort" even though both now run ruff,
+  # because "format (black)" / "format (isort)" are required status checks
+  # in this repo's branch ruleset - renaming them would leave those required
+  # checks permanently pending. Rename together with the ruleset if desired.
   format:
+    name: "format (${{ matrix.tool }})"
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        tool: ["black", "isort"]
+        include:
+          - tool: black
+            command: uv run --group linting ruff format --check .
+          - tool: isort
+            command: uv run --group linting ruff check --select I .
     steps:
       - uses: actions/checkout@v7
       - name: Install uv
@@ -17,5 +26,4 @@ jobs:
         with:
           python-version: "3.14"
       - name: ${{ matrix.tool }} Code Formatter
-        run: |
-          uv run --group formatting ${{ matrix.tool }} . --check
+        run: ${{ matrix.command }}

@@ -29,8 +29,7 @@ jobs:
         run: uv run --group tests pytest
       - name: Run Linting
         run: |
-          uv run --group linting pylint timebutler_client
-          uv run --group linting pylint unittests --rcfile=unittests/.pylintrc
+          uv run --group linting ruff check src/timebutler_client unittests
       - name: Run Type Check
         run: |
           uv run --group type_check mypy --show-error-codes src/timebutler_client --strict

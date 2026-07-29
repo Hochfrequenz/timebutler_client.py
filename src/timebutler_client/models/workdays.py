@@ -8,7 +8,7 @@ from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, computed_fie
 from timebutler_client.models.absence import EmployeeNumber, _parse_european_date
 from timebutler_client.models.invalid_employee import InvalidEmployee
 
-__all__ = ["WorkdaySchedule", "WorkdaysResult", "UNLIMITED_DATE"]
+__all__ = ["UNLIMITED_DATE", "WorkdaySchedule", "WorkdaysResult"]
 
 #: Sentinel for when Timebutler returns "unlimited" as a workday schedule start date.
 #: "unlimited" means the schedule has been in effect since the very beginning — hence a

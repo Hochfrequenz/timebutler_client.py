@@ -7,7 +7,7 @@ from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, computed_fie
 
 from timebutler_client.models.absence import EmployeeNumber, EuropeanDate
 
-__all__ = ["WorktimeEntry", "HHMMTime"]
+__all__ = ["HHMMTime", "WorktimeEntry"]
 
 
 def _parse_hhmm_time(value: str | time) -> time:

@@ -49,15 +49,15 @@ class Absence(BaseModel):
     user_id: int = 0
     half_day: bool = False
     morning: bool = False
-    absence_type: str = ""           # "Vacation", "Sickness", "Further training", etc.
+    absence_type: str = ""  # "Vacation", "Sickness", "Further training", etc.
     extra_vacation: bool = False
-    state: str = ""                  # "Approved", "Submitted", etc.
-    substitute_state: str = ""       # "No approval required", etc.
+    state: str = ""  # "Approved", "Submitted", etc.
+    substitute_state: str = ""  # "No approval required", etc.
     workdays: Decimal = Decimal("0")
     hours: Decimal = Decimal("0")
     medical_certificate: str | None = None
     comments: str | None = None
-    substitute_user_id: int = 0      # 0 means no substitute
+    substitute_user_id: int = 0  # 0 means no substitute
 ```
 
 ### Computed Properties
@@ -83,8 +83,7 @@ class TimebutlerClient(BaseModel):
     base_url: str = "https://app.timebutler.com/api/v1"
     _api_key: str = PrivateAttr()
 
-    def __init__(self, api_key: str, base_url: str = "https://app.timebutler.com/api/v1") -> None:
-        ...
+    def __init__(self, api_key: str, base_url: str = "https://app.timebutler.com/api/v1") -> None: ...
 
     async def get_absences(self, year: int) -> list[Absence]:
         """
