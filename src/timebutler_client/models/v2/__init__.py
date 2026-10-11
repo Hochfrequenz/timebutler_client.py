@@ -1,5 +1,7 @@
 """Pydantic models for the Timebutler API v2 (generated from the OpenAPI spec)."""
 
+from typing import Literal
+
 from timebutler_client.models.v2._generated import (
     AbsencePendingCountResponse,
     AbsenceRequestDto,
@@ -36,6 +38,9 @@ from timebutler_client.models.v2._generated import (
     WorkSummaryResponse,
 )
 
+TimeEntryStatus = Literal["done", "pending", "approved", "rejected", "editing"]
+"""Status filter for `TimebutlerClient.get_my_time_entries`."""
+
 __all__ = [
     "AbsencePendingCountResponse",
     "AbsenceRequestDto",
@@ -66,6 +71,7 @@ __all__ = [
     "TimeEntryDto",
     "TimeEntryPendingCountResponse",
     "TimeEntryRequestDto",
+    "TimeEntryStatus",
     "TimeOffSummaryResponse",
     "UpdateAbsenceRequest",
     "UserProfileResponse",

@@ -1545,6 +1545,7 @@ codegen = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
+    { name = "tzdata" },
 ]
 coverage = [
     { name = "aiohttp" },
@@ -1552,6 +1553,7 @@ coverage = [
     { name = "coverage" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "tzdata" },
 ]
 dev = [
     { name = "aiohttp" },
@@ -1564,6 +1566,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
+    { name = "tzdata" },
 ]
 linting = [
     { name = "aiohttp" },
@@ -1571,6 +1574,7 @@ linting = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
+    { name = "tzdata" },
 ]
 spell-check = [
     { name = "codespell" },
@@ -1580,6 +1584,7 @@ tests = [
     { name = "aioresponses" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "tzdata" },
 ]
 type-check = [
     { name = "aiohttp" },
@@ -1587,6 +1592,7 @@ type-check = [
     { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "tzdata" },
 ]
 
 [package.metadata]
@@ -1603,6 +1609,7 @@ codegen = [
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-asyncio", specifier = "==1.4.0" },
     { name = "ruff", specifier = "==0.16.10" },
+    { name = "tzdata", specifier = "==2025.2" },
 ]
 coverage = [
     { name = "aiohttp", specifier = "<3.14" },
@@ -1610,6 +1617,7 @@ coverage = [
     { name = "coverage", specifier = "==7.16.2" },
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-asyncio", specifier = "==1.4.0" },
+    { name = "tzdata", specifier = "==2025.2" },
 ]
 dev = [
     { name = "aiohttp", specifier = "<3.14" },
@@ -1622,6 +1630,7 @@ dev = [
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-asyncio", specifier = "==1.4.0" },
     { name = "ruff", specifier = "==0.16.10" },
+    { name = "tzdata", specifier = "==2025.2" },
 ]
 linting = [
     { name = "aiohttp", specifier = "<3.14" },
@@ -1629,6 +1638,7 @@ linting = [
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-asyncio", specifier = "==1.4.0" },
     { name = "ruff", specifier = "==0.16.10" },
+    { name = "tzdata", specifier = "==2025.2" },
 ]
 spell-check = [{ name = "codespell", specifier = "==2.4.3" }]
 tests = [
@@ -1636,6 +1646,7 @@ tests = [
     { name = "aioresponses", specifier = "==0.7.9" },
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-asyncio", specifier = "==1.4.0" },
+    { name = "tzdata", specifier = "==2025.2" },
 ]
 type-check = [
     { name = "aiohttp", specifier = "<3.14" },
@@ -1643,6 +1654,7 @@ type-check = [
     { name = "mypy", specifier = "==2.4.0" },
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-asyncio", specifier = "==1.4.0" },
+    { name = "tzdata", specifier = "==2025.2" },
 ]
 
 [[package]]
@@ -1676,6 +1688,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/55/e3/70399cb7dd41c10ac53367ae42139cf4b1ca5f36bb3dc6c9d33acdb43655/typing_inspection-0.4.2.tar.gz", hash = "sha256:ba561c48a67c5958007083d386c3295464928b01faa735ab8547c5692e87f464", size = 75949, upload-time = "2025-10-01T02:14:41.687Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/dc/9b/47798a6c91d8bdb567fe2698fe81e0c6b7cb7ef4d13da4114b41d239f65d/typing_inspection-0.4.2-py3-none-any.whl", hash = "sha256:4ed1cacbdc298c220f1bd249ed5287caa16f34d44ef4e9c3d0cbad5b521545e7", size = 14611, upload-time = "2025-10-01T02:14:40.154Z" },
+]
+
+[[package]]
+name = "tzdata"
+version = "2025.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/95/32/1a225d6164441be760d75c2c42e2780dc0873fe382da3e98a2e1e48361e5/tzdata-2025.2.tar.gz", hash = "sha256:b60a638fcc0daffadf82fe0f57e53d06bdec2f36c4df66280ae79bce6bd6f2b9", size = 196380, upload-time = "2025-03-23T13:54:43.652Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5c/23/c7abc0ca0a1526a0774eca151daeb8de62ec457e77262b66b359c3c7679e/tzdata-2025.2-py2.py3-none-any.whl", hash = "sha256:1a403fada01ff9221ca8044d701868fa132215d84beb92242d9acd2147f667a8", size = 347839, upload-time = "2025-03-23T13:54:41.845Z" },
 ]
 
 [[package]]
