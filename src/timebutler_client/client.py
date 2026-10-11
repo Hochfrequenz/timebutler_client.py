@@ -6,11 +6,14 @@ from timebutler_client._v1 import V1_BASE_URL, V1Mixin
 from timebutler_client._v2._http import V2_BASE_URL, V2Transport
 from timebutler_client._v2.absences import AbsencesMixin
 from timebutler_client._v2.organisation import OrganisationMixin
+from timebutler_client._v2.substitutes import SubstitutesMixin
 from timebutler_client._v2.time_clock import TimeClockMixin
 from timebutler_client._v2.time_entries import TimeEntriesMixin
 
 
-class TimebutlerClient(V1Mixin, AbsencesMixin, TimeClockMixin, TimeEntriesMixin, OrganisationMixin, BaseModel):
+class TimebutlerClient(
+    V1Mixin, AbsencesMixin, SubstitutesMixin, TimeClockMixin, TimeEntriesMixin, OrganisationMixin, BaseModel
+):
     """
     Async client for the Timebutler API.
 
