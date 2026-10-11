@@ -3,10 +3,11 @@
 from pydantic import BaseModel, PrivateAttr
 
 from timebutler_client._v1 import V1_BASE_URL, V1Mixin
-from timebutler_client._v2._http import V2_BASE_URL, V2Mixin, V2Transport
+from timebutler_client._v2._http import V2_BASE_URL, V2Transport
+from timebutler_client._v2.organisation import OrganisationMixin
 
 
-class TimebutlerClient(V1Mixin, V2Mixin, BaseModel):
+class TimebutlerClient(V1Mixin, OrganisationMixin, BaseModel):
     """
     Async client for the Timebutler API.
 
