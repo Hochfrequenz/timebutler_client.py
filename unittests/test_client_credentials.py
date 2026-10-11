@@ -44,3 +44,10 @@ class TestCredentials:
         with pytest.raises(TimebutlerMissingCredentialsError) as excinfo:
             client._require_v2()  # pylint: disable=protected-access
         assert excinfo.value.credential == "personal_token"
+
+    def test_legacy_positional_base_url_and_timeout(self) -> None:
+        client = TimebutlerClient("legacy-key", "https://proxy.example/api/v1", 5.0)
+        assert client.base_url == "https://proxy.example/api/v1"
+        assert client.timeout == 5.0
+        with pytest.raises(TimebutlerMissingCredentialsError):
+            client._require_v2()  # pylint: disable=protected-access

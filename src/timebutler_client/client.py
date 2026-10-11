@@ -37,10 +37,11 @@ class TimebutlerClient(
     def __init__(
         self,
         api_key: str | None = None,
-        personal_token: str | None = None,
         base_url: str = V1_BASE_URL,
-        base_url_v2: str = V2_BASE_URL,
         timeout: float = 30.0,
+        *,
+        personal_token: str | None = None,
+        base_url_v2: str = V2_BASE_URL,
     ) -> None:
         api_key = api_key.strip() if api_key and api_key.strip() else None
         personal_token = personal_token.strip() if personal_token and personal_token.strip() else None
