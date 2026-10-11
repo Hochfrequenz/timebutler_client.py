@@ -107,10 +107,10 @@ class TestRefresh:
             mocked.get(f"{V2}/user/profile", status=401)
             mocked.post(TOKEN_URL, status=200, payload=REFRESHED)
             mocked.get(f"{V2}/user/profile", status=200, payload={"id": "1"}, repeat=True)
-            results: list[Any] = await asyncio.gather(
+            results = await asyncio.gather(
                 client._v2_request("GET", "/user/profile"),
                 client._v2_request("GET", "/user/profile"),
             )
             forms = _form_calls(mocked)
-        assert results == [{"id": "1"}, {"id": "1"}]
+        assert list(results) == [{"id": "1"}, {"id": "1"}]
         assert [form["grant_type"] for form in forms] == ["password", "refresh_token"]
