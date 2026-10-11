@@ -20,3 +20,15 @@ jobs:
       - name: Run the Unit Tests
         run: |
           uv run --group tests pytest
+  codegen:
+    # the codegen consistency test is skipped in the jobs above (they don't install the codegen group)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.13"
+      - name: Check that models/v2/_generated.py matches the pinned OpenAPI spec
+        run: |
+          uv run --group codegen pytest unittests/test_v2_codegen.py -rs
