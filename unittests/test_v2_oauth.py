@@ -114,3 +114,19 @@ class TestRefresh:
             forms = _form_calls(mocked)
         assert list(results) == [{"id": "1"}, {"id": "1"}]
         assert [form["grant_type"] for form in forms] == ["password", "refresh_token"]
+
+    async def test_failed_refresh_is_not_retried(self) -> None:
+        with aioresponses() as mocked:
+            client = await self._logged_in(mocked)
+            for _ in range(3):
+                mocked.get(f"{V2}/user/profile", status=401)
+            mocked.post(TOKEN_URL, status=400, payload={"error": "invalid_grant"}, repeat=True)
+            results = await asyncio.gather(
+                *(client._v2_request("GET", "/user/profile") for _ in range(3)), return_exceptions=True
+            )
+            mocked.get(f"{V2}/user/profile", status=401)
+            with pytest.raises(TimebutlerAuthenticationError):
+                await client._v2_request("GET", "/user/profile")
+            forms = _form_calls(mocked)
+        assert all(isinstance(result, TimebutlerAuthenticationError) for result in results)
+        assert [form["grant_type"] for form in forms] == ["password", "refresh_token"]

@@ -121,7 +121,7 @@ class V2Transport:
             async with session.post(
                 f"{self.base_url}/oauth2/token", data=form, headers={"Accept": "application/json"}
             ) as response:
-                status, text = response.status, await response.text()
+                status, text = response.status, await response.text(errors="replace")
         if status in (400, 401):
             raise TimebutlerAuthenticationError(f"Token request failed: {text[:_MAX_ERROR_TEXT]}")
         raise_for_v2_status(status, text, {})
@@ -145,7 +145,12 @@ class V2Transport:
                 return  # another request already refreshed
             if self.refresh_token is None:
                 raise TimebutlerAuthenticationError("Access token expired and no refresh token is available")
-            await self._token_request({"grant_type": "refresh_token", "refresh_token": self.refresh_token})
+            try:
+                await self._token_request({"grant_type": "refresh_token", "refresh_token": self.refresh_token})
+            except Exception:
+                # refresh tokens are single-use: never retry a failed one (waiters and later calls fail fast)
+                self.refresh_token = None
+                raise
 
     async def request(
         self,
@@ -188,7 +193,7 @@ class V2Transport:
             async with session.request(
                 method, f"{self.base_url}{path}", headers=headers, params=str_params, json=json
             ) as response:
-                return response.status, await response.text(), dict(response.headers)
+                return response.status, await response.text(errors="replace"), dict(response.headers)
 
 
 class V2Mixin:

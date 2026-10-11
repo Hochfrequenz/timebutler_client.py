@@ -78,6 +78,18 @@ class TestV2Request:
                 await make_client()._v2_request("GET", "/y")
         assert excinfo.value.response_text == "plain text"
 
+    async def test_non_utf8_error_body(self) -> None:
+        with aioresponses() as mocked:
+            mocked.get(f"{V2}/x", status=500, body="Fehler ä".encode("latin-1"), content_type="text/plain")
+            with pytest.raises(TimebutlerServerError, match="Fehler"):
+                await make_client()._v2_request("GET", "/x")
+
+    async def test_non_utf8_success_body_is_parse_error(self) -> None:
+        with aioresponses() as mocked:
+            mocked.get(f"{V2}/x", status=200, body="äÿ".encode("latin-1"), content_type="text/plain")
+            with pytest.raises(TimebutlerParseError):
+                await make_client()._v2_request("GET", "/x")
+
     async def test_error_text_truncated_to_200_chars(self) -> None:
         with aioresponses() as mocked:
             mocked.get(f"{V2}/x", status=409, body="x" * 500)
