@@ -4,10 +4,15 @@
 from timebutler_client.client import TimebutlerClient
 from timebutler_client.exceptions import (
     TimebutlerAuthenticationError,
+    TimebutlerConflictError,
     TimebutlerError,
+    TimebutlerMissingCredentialsError,
+    TimebutlerNotFoundError,
     TimebutlerParseError,
+    TimebutlerPermissionError,
     TimebutlerRateLimitError,
     TimebutlerServerError,
+    TimebutlerValidationError,
 )
 from timebutler_client.models import (
     Absence,
@@ -32,10 +37,15 @@ __all__ = [
     "Service",
     "TimebutlerAuthenticationError",
     "TimebutlerClient",
+    "TimebutlerConflictError",
     "TimebutlerError",
+    "TimebutlerMissingCredentialsError",
+    "TimebutlerNotFoundError",
     "TimebutlerParseError",
+    "TimebutlerPermissionError",
     "TimebutlerRateLimitError",
     "TimebutlerServerError",
+    "TimebutlerValidationError",
     "User",
     "WorkdaySchedule",
     "WorkdaysResult",
