@@ -1,6 +1,6 @@
 # timebutler_client
 
-Async Python client for the [Timebutler](https://timebutler.com) API ([official docs](https://app.timebutler.com/do?ha=api&ac=10)).
+Async Python client for the [Timebutler](https://timebutler.com) API: v1 ([official docs](https://app.timebutler.com/do?ha=api&ac=10)) and v2 ([official docs](https://app.timebutler.com/api/v2/docs)).
 
 > [!IMPORTANT]
 > This is NOT an official client by Timebutler GmbH, just a community project.
@@ -21,10 +21,13 @@ pip install timebutler-client
 
 ## Usage
 
+The client speaks both Timebutler APIs. v1 uses a company-wide API key and returns company-wide exports;
+v2 uses a personal token and acts as the user who owns it (see [API v2](#api-v2-personal-tokens) below).
+
 ```python
 from timebutler_client import TimebutlerClient
 
-# Create client with your API key
+# Create client with your API key (v1)
 client = TimebutlerClient(api_key="your-api-key")
 
 # Fetch absences for a specific year
@@ -37,7 +40,7 @@ for absence in absences:
 ## Features
 
 > [!NOTE]
-> We only implemented a subset of the Timebutler API endpoints, because the API is not very convenient to develop against (no OpenAPI, no sandbox or test system, only admin API keys).
+> For API v1 we only implemented a subset of the endpoints, because the API is not very convenient to develop against (no OpenAPI, no sandbox or test system, only admin API keys).
 
 - Async HTTP client using `aiohttp`
 - Typed responses using Pydantic models
@@ -81,6 +84,79 @@ for entry in worktime:
     if entry.has_project:
         project_name = project_names.get(entry.project_id, "Unknown")
         print(f"{entry.date}: {entry.duration} on {project_name}")
+```
+
+## API v2 (personal tokens)
+
+Timebutler's [API v2](https://app.timebutler.com/api/v2/docs) is JSON-based and acts **as the user** who owns the token.
+All v2 operations are supported. Create a personal token (prefix `tb_`) in Timebutler and pass it as `personal_token`:
+
+```python
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+from timebutler_client import TimebutlerClient
+
+client = TimebutlerClient(personal_token="tb_...")
+
+# Book a time entry (start/end must be timezone-aware and on the same day)
+berlin = ZoneInfo("Europe/Berlin")
+projects = await client.get_time_tracking_projects()
+await client.create_time_entry(
+    start=datetime(2026, 10, 9, 9, 0, tzinfo=berlin),
+    end=datetime(2026, 10, 9, 17, 30, tzinfo=berlin),
+    pause=timedelta(minutes=30),
+    project_id=projects.default_project_id,
+    remarks="Sprint review",
+)
+
+# Stamp in / out
+await client.start_time_clock()
+result = await client.stop_time_clock()
+if result is not None and result.outcome == "confirmationRequired":
+    result = await client.stop_time_clock(break_regulation="apply")
+
+# Approve absences of your team
+for request in await client.get_team_absence_requests():
+    if request.status == "pending":
+        await client.approve_absence_request(request.id)
+```
+
+There is no update endpoint for time entries in v2: to correct an entry, `delete_time_entry()` and create it again.
+Accounts without 2FA can also log in with `await TimebutlerClient.from_password(username, password)`;
+the access token is then refreshed automatically. v2 models live in `timebutler_client.models.v2`.
+
+Both credentials can be combined: `TimebutlerClient(api_key=..., personal_token=...)`.
+Calling a method without the credential it needs raises `TimebutlerMissingCredentialsError`.
+
+### v1 vs v2: what works where
+
+| Use case | v1 (`api_key`) | v2 (`personal_token`) |
+|---|---|---|
+| Absences of all employees for a year | `get_absences(year)` | team requests only, no year filter |
+| Users / employees | `get_users()` | `get_employees()` |
+| Projects / services incl. inactive, budget | `get_projects()`, `get_services()` | active only: `get_time_tracking_projects()`, `get_time_tracking_categories()` |
+| Worktime of all users | `get_worktime()` | own entries only: `get_my_time_entries()` |
+| Workday schedules | `get_workdays()` | – |
+| Create / delete time entries, time clock | – | ✅ |
+| Create / update / approve absence requests | – | ✅ |
+| Substitute, cancellation and time entry approvals | – | ✅ |
+
+### Regenerating v2 models
+
+The v2 models are generated from the pinned spec in `spec/timebutler-v2-openapi.json`:
+
+```bash
+curl -sL https://app.timebutler.com/api/v2/openapi.json -o spec/timebutler-v2-openapi.json
+uv run --group codegen python scripts/generate_v2_models.py
+```
+
+### Integration tests
+
+Read-only smoke tests against the real API (skipped by default):
+
+```bash
+TIMEBUTLER_PERSONAL_TOKEN=tb_... uv run --group tests pytest -m integration
 ```
 
 ## Development
