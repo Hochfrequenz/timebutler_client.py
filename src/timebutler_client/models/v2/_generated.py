@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import ConfigDict, Field
 
@@ -37,11 +37,11 @@ class AbsenceRequestDto(V2BaseModel):
     """
     Für Überstunden-Abwesenheitstypen (`UEB` = geleistete Überstunden, `AUA` = Überstundenabbau) erfasste Stundenzahl als Dezimalstunden. `null` bei allen anderen Abwesenheitstypen.
     """
-    status: Literal["pending", "approved", "rejected"] | None = Field(None, examples=["pending"])
+    status: str | None = Field(None, examples=["pending"])
     """
     Aktueller Status des Antrags. Einer von `pending` (wartet auf Genehmigung), `approved` oder `rejected`.
     """
-    half_day: Literal["morning", "afternoon"] | None = Field(None, alias="halfDay", examples=["morning"])
+    half_day: str | None = Field(None, alias="halfDay", examples=["morning"])
     """
     Halbtags-Indikator. `"morning"` oder `"afternoon"` für Halbtagsanträge; `null` für ganztägige Abwesenheiten.
     """
@@ -79,7 +79,7 @@ class CreateAbsenceRequest(V2BaseModel):
     """
     Letzter Tag der Abwesenheit im ISO-8601-Format (`YYYY-MM-DD`). Muss gleich oder nach `startDate` liegen. Bei Halbtagsanträgen muss es gleich `startDate` sein.
     """
-    half_day: Literal["morning", "afternoon"] | None = Field(None, alias="halfDay", examples=["morning"])
+    half_day: str | None = Field(None, alias="halfDay", examples=["morning"])
     """
     Auf `"morning"` oder `"afternoon"` setzen, um einen einzelnen Halbtag zu beantragen. Wenn gesetzt, müssen `startDate` und `endDate` denselben Tag haben. Weglassen oder `null` senden für eine ganztägige Abwesenheit.
     """
@@ -115,9 +115,7 @@ class DeleteResultResponse(V2BaseModel):
     """
     Interne ID des betroffenen Eintrags.
     """
-    result: Literal["deleted", "cancellation_requested", "deletion_requested"] | None = Field(
-        None, examples=["deleted"]
-    )
+    result: str | None = Field(None, examples=["deleted"])
     """
     Ergebnis der Operation. `"deleted"`, wenn der Eintrag direkt gelöscht wurde; `"cancellation_requested"`, wenn stattdessen ein Stornierungsantrag erstellt wurde; `"deletion_requested"`, wenn ein Löschantrag erstellt wurde (für Zeiteinträge, die genehmigt werden müssen).
     """
@@ -165,7 +163,7 @@ class UpdateAbsenceRequest(V2BaseModel):
     """
     Neues Enddatum im ISO-8601-Format (`YYYY-MM-DD`). Muss gleich oder nach `startDate` liegen. `null` senden, um den bestehenden Wert zu behalten.
     """
-    half_day: Literal["morning", "afternoon", ""] | None = Field(None, alias="halfDay", examples=["morning"])
+    half_day: str | None = Field(None, alias="halfDay", examples=["morning"])
     """
     Neue Halbtags-Einstellung. `"morning"` oder `"afternoon"` um auf einen Halbtag zu wechseln; leerer String `""` um den Halbtag zu entfernen und auf ganztägig zu stellen; `null` um den bestehenden Wert zu behalten.
     """
@@ -241,7 +239,7 @@ class CancellationRequestDto(V2BaseModel):
     """
     Anzahl der Werktage, die die Abwesenheit umfasst.
     """
-    status: Literal["pending", "approved"] | None = Field(None, examples=["pending"])
+    status: str | None = Field(None, examples=["pending"])
     """
     Aktueller Status des Stornierungsantrags. Einer von `pending` (wartet auf Genehmigung) oder `approved`.
     """
@@ -315,7 +313,7 @@ class EmployeeDto(V2BaseModel):
     """
     Mobilnummer (v1-CSV-Spalte `mobile`). `null`, wenn nicht gesetzt.
     """
-    role: Literal["USER", "MANAGER", "ADMIN"] | None = Field(None, examples=["USER"])
+    role: str | None = Field(None, examples=["USER"])
     """
     Rolle des Mitarbeiters im Unternehmen. Einer von `USER`, `MANAGER` oder `ADMIN`. Dies ist das stabile, sprachunabhängige Gegenstück zur lokalisierten v1-CSV-Spalte `userType`.
     """
@@ -513,7 +511,7 @@ class SubstituteRequestDto(V2BaseModel):
     """
     Anzahl der Werktage, die die Abwesenheit umfasst.
     """
-    status: Literal["pending", "confirmed"] | None = Field(None, examples=["pending"])
+    status: str | None = Field(None, examples=["pending"])
     """
     Aktueller Status der Vertretungsbestätigung. Einer von `pending` (wartet auf Bestätigung des Vertreters) oder `confirmed`.
     """
@@ -533,7 +531,7 @@ class TimeClockStatusDto(V2BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
     )
-    status: Literal["idle", "running", "paused", "waiting"] | None = Field(None, examples=["running"])
+    status: str | None = Field(None, examples=["running"])
     """
     Aktueller Zustand der Zeiterfassung. Einer von `idle` (nicht aktiv), `running` (eingestempelt), `paused` oder `waiting` (gestartet, aber bis zum Ablauf eines Mindestintervalls gehalten).
     """
@@ -623,7 +621,7 @@ class TimeClockStopResponse(V2BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
     )
-    outcome: Literal["saved", "confirmationRequired"] | None = Field(None, examples=["saved"])
+    outcome: str | None = Field(None, examples=["saved"])
     """
     `saved`, wenn der Eintrag gespeichert wurde, oder `confirmationRequired`, wenn vor dem Speichern eine Entscheidung zur Pausenregelung erforderlich ist.
     """
@@ -666,7 +664,7 @@ class TimeClockStopRequest(V2BaseModel):
     """
     Optionaler Freitextkommentar für den abgeschlossenen Zeiteintrag.
     """
-    break_regulation: Literal["apply", "ignore"] | None = Field(None, alias="breakRegulation", examples=["apply"])
+    break_regulation: str | None = Field(None, alias="breakRegulation", examples=["apply"])
     """
     Entscheidung, wie eine Verletzung der Pausenregelung behandelt wird. Beim ersten Stopp weglassen: Verletzt die Sitzung die Pausenregelung, speichert der Server nicht, sondern liefert `outcome: confirmationRequired` mit der erforderlichen Änderung. Den Stopp mit `apply` erneut senden, um die Korrektur zu übernehmen (Arbeitszeit kürzen und fehlende Pause ergänzen), oder mit `ignore`, um die Sitzung unverändert zu speichern. Bei einer verpflichtenden Regelung lehnt der Server `ignore` ab und gibt erneut `confirmationRequired` zurück, sodass die Korrektur mit `apply` akzeptiert werden muss; Clients können die Option `ignore` anhand von `obligatory` in der Bestätigungsantwort ausblenden.
     """
@@ -720,11 +718,11 @@ class TimeEntryRequestDto(V2BaseModel):
     """
     Freitextkommentar, der diesem Eintrag beigefügt ist. `null`, wenn kein Kommentar eingegeben wurde.
     """
-    request_type: Literal["manual", "clock"] | None = Field(None, alias="requestType", examples=["manual"])
+    request_type: str | None = Field(None, alias="requestType", examples=["manual"])
     """
     Typ der Anfrage, die diesen Eintrag erzeugt hat. Einer von `manual` (manuell eingegeben) oder `clock` (durch Ausstempeln erstellt).
     """
-    status: Literal["pending", "approved"] | None = Field(None, examples=["pending"])
+    status: str | None = Field(None, examples=["pending"])
     """
     Genehmigungsstatus dieses Zeiteintrags. Einer von `pending` (wartet auf Genehmigung) oder `approved`.
     """
@@ -774,7 +772,7 @@ class TimeEntryDto(V2BaseModel):
     """
     Name der Kategorie, die diesem Eintrag zugeordnet ist. `null`, wenn keine Kategorie zugeordnet wurde.
     """
-    status: Literal["done", "pending", "approved", "rejected", "editing"] | None = Field(None, examples=["done"])
+    status: str | None = Field(None, examples=["done"])
     """
     Status dieses Zeiteintrags. Einer von `done` (erfasst, keine Genehmigung erforderlich), `pending` (wartet auf Genehmigung), `approved`, `rejected` oder `editing`.
     """
@@ -914,7 +912,7 @@ class UserProfileResponse(V2BaseModel):
     """
     E-Mail-Adresse des Benutzers.
     """
-    role: Literal["USER", "MANAGER", "ADMIN"] | None = Field(None, examples=["MANAGER"])
+    role: str | None = Field(None, examples=["MANAGER"])
     """
     Rolle des Benutzers im Unternehmen. Einer von `USER`, `MANAGER` oder `ADMIN`.
     """

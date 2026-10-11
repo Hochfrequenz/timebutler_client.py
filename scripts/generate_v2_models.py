@@ -3,11 +3,13 @@
 Usage: uv run --group codegen python scripts/generate_v2_models.py
 """
 
+import json
 import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SPEC_PATH = REPO_ROOT / "spec" / "timebutler-v2-openapi.json"
@@ -22,19 +24,36 @@ def generate(output: Path) -> None:
     their configuration (line length, first-party packages) from the location of the generated file.
     """
     with tempfile.TemporaryDirectory(dir=OUTPUT_PATH.parent) as tmp_dir:
+        tmp_spec = Path(tmp_dir) / SPEC_PATH.name
+        tmp_spec.write_text(json.dumps(_without_enums(json.loads(SPEC_PATH.read_text(encoding="utf-8")))), "utf-8")
         tmp_output = Path(tmp_dir) / OUTPUT_PATH.name
-        _run_codegen(tmp_output)
+        _run_codegen(tmp_spec, tmp_output)
         shutil.copyfile(tmp_output, output)
 
 
-def _run_codegen(output: Path) -> None:
+def _without_enums(node: Any) -> Any:
+    """
+    Drop all `enum` constraints so enum-like fields become plain `str`.
+
+    The server sends values the spec does not list (e.g. absence request state `edit`); a strict
+    Literal would make whole list responses fail to parse. The allowed values stay documented in
+    the field descriptions; hand-written method signatures use Literal where it helps callers.
+    """
+    if isinstance(node, dict):
+        return {key: _without_enums(value) for key, value in node.items() if key != "enum"}
+    if isinstance(node, list):
+        return [_without_enums(item) for item in node]
+    return node
+
+
+def _run_codegen(spec: Path, output: Path) -> None:
     subprocess.run(
         [
             sys.executable,
             "-m",
             "datamodel_code_generator",
             "--input",
-            str(SPEC_PATH),
+            str(spec),
             "--input-file-type",
             "openapi",
             "--output",
@@ -49,8 +68,6 @@ def _run_codegen(output: Path) -> None:
             "--use-union-operator",
             "--target-python-version",
             "3.11",
-            "--enum-field-as-literal",
-            "all",
             "--use-field-description",
             "--use-schema-description",
             "--use-double-quotes",

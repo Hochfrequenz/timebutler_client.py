@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from timebutler_client.models.v2 import TimeEntryDto
+from timebutler_client.models.v2 import AbsenceRequestDto, TimeClockStatusDto, TimeEntryDto
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -28,6 +28,12 @@ class TestGeneratedModels:
     def test_unknown_fields_are_ignored(self) -> None:
         entry = TimeEntryDto.model_validate({"id": "1", "somethingNew": 42})
         assert entry.id == "1"
+
+    def test_unknown_enum_values_are_accepted(self) -> None:
+        """The server may send states the spec does not list (e.g. absence request state 'edit')."""
+        assert AbsenceRequestDto.model_validate({"status": "edit"}).status == "edit"
+        assert TimeEntryDto.model_validate({"status": "archived"}).status == "archived"
+        assert TimeClockStatusDto.model_validate({"status": "suspended"}).status == "suspended"
 
     @pytest.mark.skipif(
         importlib.util.find_spec("datamodel_code_generator") is None, reason="codegen group not installed"
