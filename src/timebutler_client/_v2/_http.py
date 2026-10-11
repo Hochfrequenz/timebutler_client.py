@@ -1,5 +1,6 @@
 """HTTP transport for the Timebutler API v2 (JSON, bearer auth)."""
 
+import asyncio
 import json as jsonlib
 from collections.abc import Mapping
 from typing import Any, TypeVar
@@ -18,6 +19,7 @@ from timebutler_client.exceptions import (
     TimebutlerServerError,
     TimebutlerValidationError,
 )
+from timebutler_client.models.v2 import MfaChallengeResponse, OauthTokenResponse
 
 V2_BASE_URL = "https://app.timebutler.com/api/v2"
 
@@ -90,6 +92,60 @@ class V2Transport:
         self.refresh_token = refresh_token
         self.client_id = client_id
         self.client_secret = client_secret
+        self._refresh_lock = asyncio.Lock()
+
+    @classmethod
+    async def password_login(
+        cls,
+        *,
+        base_url: str,
+        timeout: float,
+        username: str,
+        password: str,
+        client_id: str = "public",
+        client_secret: str | None = None,
+    ) -> "V2Transport":
+        """Log in with the OAuth password grant."""
+        transport = cls(
+            base_url=base_url, timeout=timeout, access_token="", client_id=client_id, client_secret=client_secret
+        )
+        await transport._token_request({"grant_type": "password", "username": username, "password": password})
+        return transport
+
+    async def _token_request(self, form: dict[str, str]) -> None:
+        form = {**form, "client_id": self.client_id}
+        if self.client_secret is not None:
+            form["client_secret"] = self.client_secret
+        timeout_config = aiohttp.ClientTimeout(total=self.timeout)
+        async with aiohttp.ClientSession(timeout=timeout_config) as session:
+            async with session.post(
+                f"{self.base_url}/oauth2/token", data=form, headers={"Accept": "application/json"}
+            ) as response:
+                status, text = response.status, await response.text()
+        if status in (400, 401):
+            raise TimebutlerAuthenticationError(f"Token request failed: {text[:_MAX_ERROR_TEXT]}")
+        raise_for_v2_status(status, text, {})
+        try:
+            data = jsonlib.loads(text)
+        except ValueError as e:
+            raise TimebutlerParseError(f"Token response is not valid JSON: {text[:_MAX_ERROR_TEXT]}") from e
+        if isinstance(data, dict) and data.get("mfa_required"):
+            parse_model(MfaChallengeResponse, data)
+            raise TimebutlerAuthenticationError("Account has 2FA enabled; use a personal token (tb_...) instead")
+        tokens = parse_model(OauthTokenResponse, data)
+        if not tokens.access_token:
+            raise TimebutlerParseError("Token response contains no access_token")
+        self.access_token = tokens.access_token
+        self.refresh_token = tokens.refresh_token
+
+    async def _refresh(self, failed_token: str) -> None:
+        """Refresh the access token once, even if several requests failed concurrently."""
+        async with self._refresh_lock:
+            if self.access_token != failed_token:
+                return  # another request already refreshed
+            if self.refresh_token is None:
+                raise TimebutlerAuthenticationError("Access token expired and no refresh token is available")
+            await self._token_request({"grant_type": "refresh_token", "refresh_token": self.refresh_token})
 
     async def request(
         self,
@@ -99,8 +155,16 @@ class V2Transport:
         params: Mapping[str, str | int] | None = None,
         json: Mapping[str, Any] | None = None,
     ) -> Any:
-        """Perform an authenticated request; return parsed JSON or None for empty responses."""
+        """
+        Perform an authenticated request; return parsed JSON or None for empty responses.
+
+        Clients created via password login refresh the access token once on 401 and retry.
+        """
+        used_token = self.access_token
         status, text, headers = await self._send(method, path, params=params, json=json)
+        if status == 401 and self.refresh_token is not None:
+            await self._refresh(used_token)
+            status, text, headers = await self._send(method, path, params=params, json=json)
         raise_for_v2_status(status, text, headers)
         if status == 204 or not text.strip():
             return None
