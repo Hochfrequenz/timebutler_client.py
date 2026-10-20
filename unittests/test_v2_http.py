@@ -78,6 +78,18 @@ class TestV2Request:
                 await make_client()._v2_request("GET", "/y")
         assert excinfo.value.response_text == "plain text"
 
+    async def test_html_error_page_reduced_to_text(self) -> None:
+        page = (
+            "<!DOCTYPE html>\n<html><head><title>Timebutler &mdash; Fehler</title>"
+            "<style>body { color: red; }</style><script>var x = 1;</script></head>"
+            "<body>\n  <h1>Anfrage nicht verarbeitet</h1>\n  <p>Token ung&uuml;ltig</p>\n</body></html>"
+        )
+        with aioresponses() as mocked:
+            mocked.get(f"{V2}/x", status=401, body=page, content_type="text/html")
+            with pytest.raises(TimebutlerAuthenticationError) as excinfo:
+                await make_client()._v2_request("GET", "/x")
+        assert str(excinfo.value) == "Invalid or expired token: Anfrage nicht verarbeitet Token ungültig"
+
     async def test_non_utf8_error_body(self) -> None:
         with aioresponses() as mocked:
             mocked.get(f"{V2}/x", status=500, body="Fehler ä".encode("latin-1"), content_type="text/plain")

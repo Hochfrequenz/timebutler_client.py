@@ -1,7 +1,9 @@
 """HTTP transport for the Timebutler API v2 (JSON, bearer auth)."""
 
 import asyncio
+import html
 import json as jsonlib
+import re
 from collections.abc import Mapping
 from typing import Any, TypeVar
 
@@ -25,13 +27,23 @@ V2_BASE_URL = "https://app.timebutler.com/api/v2"
 
 M = TypeVar("M", bound=BaseModel)
 _MAX_ERROR_TEXT = 200
+_HTML_HIDDEN = re.compile(r"<(head|style|script)\b.*?</\1\s*>", re.IGNORECASE | re.DOTALL)
+_HTML_TAG = re.compile(r"<[^>]*>")
+
+
+def _error_text(text: str) -> str:
+    """Reduce an HTML error page (e.g. the 401 page) to its visible text."""
+    if text.lstrip()[:15].lower().startswith(("<!doctype html", "<html")):
+        text = html.unescape(_HTML_TAG.sub(" ", _HTML_HIDDEN.sub(" ", text)))
+        text = " ".join(text.split())
+    return text[:_MAX_ERROR_TEXT]
 
 
 def raise_for_v2_status(status: int, text: str, headers: Mapping[str, str]) -> None:
     """Map a non-2xx v2 response to the matching Timebutler exception."""
     if status < 400:
         return
-    text = text[:_MAX_ERROR_TEXT]
+    text = _error_text(text)
     if status == 401:
         raise TimebutlerAuthenticationError(f"Invalid or expired token: {text}" if text else "Invalid or expired token")
     if status == 403:
