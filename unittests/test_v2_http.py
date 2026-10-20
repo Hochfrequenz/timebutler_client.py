@@ -120,6 +120,13 @@ class TestV2Request:
                 await make_client()._v2_request("GET", "/x")
         assert excinfo.value.retry_after == expected
 
+    async def test_rate_limit_retry_after_is_case_insensitive(self) -> None:
+        with aioresponses() as mocked:
+            mocked.get(f"{V2}/x", status=429, headers={"retry-after": "5"})
+            with pytest.raises(TimebutlerRateLimitError) as excinfo:
+                await make_client()._v2_request("GET", "/x")
+        assert excinfo.value.retry_after == 5
+
     async def test_invalid_json_on_success_is_parse_error(self) -> None:
         with aioresponses() as mocked:
             mocked.get(f"{V2}/x", status=200, body="not json", content_type="application/json")

@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 from aioresponses import aioresponses
 
-from timebutler_client import TimebutlerAuthenticationError, TimebutlerClient
+from timebutler_client import TimebutlerAuthenticationError, TimebutlerClient, TimebutlerServerError
 from unittests.v2_helpers import V2
 
 # pylint: disable=protected-access
@@ -130,3 +130,16 @@ class TestRefresh:
             forms = _form_calls(mocked)
         assert all(isinstance(result, TimebutlerAuthenticationError) for result in results)
         assert [form["grant_type"] for form in forms] == ["password", "refresh_token"]
+
+    async def test_transient_refresh_failure_keeps_refresh_token(self) -> None:
+        with aioresponses() as mocked:
+            client = await self._logged_in(mocked)
+            mocked.get(f"{V2}/user/profile", status=401)
+            mocked.post(TOKEN_URL, status=503)
+            with pytest.raises(TimebutlerServerError):
+                await client._v2_request("GET", "/user/profile")
+            assert client._require_v2().refresh_token == "rt-1"
+            mocked.get(f"{V2}/user/profile", status=401)
+            mocked.post(TOKEN_URL, status=200, payload=REFRESHED)
+            mocked.get(f"{V2}/user/profile", status=200, payload={"id": "1"})
+            assert await client._v2_request("GET", "/user/profile") == {"id": "1"}

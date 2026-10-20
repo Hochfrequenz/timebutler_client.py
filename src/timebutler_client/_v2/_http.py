@@ -29,6 +29,7 @@ M = TypeVar("M", bound=BaseModel)
 _MAX_ERROR_TEXT = 200
 _HTML_HIDDEN = re.compile(r"<(head|style|script)\b.*?</\1\s*>", re.IGNORECASE | re.DOTALL)
 _HTML_TAG = re.compile(r"<[^>]*>")
+_TRANSIENT_ERRORS = (TimebutlerServerError, TimebutlerRateLimitError, aiohttp.ClientError, asyncio.TimeoutError)
 
 
 def _error_text(text: str) -> str:
@@ -159,8 +160,10 @@ class V2Transport:
                 raise TimebutlerAuthenticationError("Access token expired and no refresh token is available")
             try:
                 await self._token_request({"grant_type": "refresh_token", "refresh_token": self.refresh_token})
+            except _TRANSIENT_ERRORS:
+                raise  # the token was most likely not consumed: keep it so a later call can refresh
             except Exception:
-                # refresh tokens are single-use: never retry a failed one (waiters and later calls fail fast)
+                # refresh tokens are single-use: never retry a rejected one (waiters and later calls fail fast)
                 self.refresh_token = None
                 raise
 
@@ -197,7 +200,7 @@ class V2Transport:
         *,
         params: Mapping[str, str | int] | None,
         json: Mapping[str, Any] | None,
-    ) -> tuple[int, str, dict[str, str]]:
+    ) -> tuple[int, str, Mapping[str, str]]:
         headers = {"Authorization": f"Bearer {self.access_token}", "Accept": "application/json"}
         str_params = {key: str(value) for key, value in params.items()} if params else None
         timeout_config = aiohttp.ClientTimeout(total=self.timeout)
@@ -205,7 +208,8 @@ class V2Transport:
             async with session.request(
                 method, f"{self.base_url}{path}", headers=headers, params=str_params, json=json
             ) as response:
-                return response.status, await response.text(errors="replace"), dict(response.headers)
+                # keep the case-insensitive multidict: header names may arrive in any case
+                return response.status, await response.text(errors="replace"), response.headers.copy()
 
 
 class V2Mixin:
