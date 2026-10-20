@@ -1,7 +1,7 @@
 """
 Read-only tests against the real Timebutler API v2.
 
-Run with: TIMEBUTLER_PERSONAL_TOKEN=tb_... uv run --group tests pytest -m integration
+Run with: uv run --env-file .env --group tests pytest -m integration (see .env.example)
 """
 
 import os

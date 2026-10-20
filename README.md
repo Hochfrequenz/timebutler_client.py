@@ -153,10 +153,11 @@ uv run --group codegen python scripts/generate_v2_models.py
 
 ### Integration tests
 
-Read-only smoke tests against the real API (skipped by default):
+Read-only smoke tests against the real API (skipped by default).
+Copy `.env.example` to `.env` (git-ignored), set your token, then run:
 
 ```bash
-TIMEBUTLER_PERSONAL_TOKEN=tb_... uv run --group tests pytest -m integration
+uv run --env-file .env --group tests pytest -m integration
 ```
 
 ## Development
