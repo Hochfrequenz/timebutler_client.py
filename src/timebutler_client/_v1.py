@@ -1,0 +1,483 @@
+"""Timebutler API v1 (CSV, API-key auth) methods."""
+
+import asyncio
+import csv
+import logging
+import re
+from decimal import Decimal
+from io import StringIO
+
+import aiohttp
+
+from timebutler_client.exceptions import (
+    TimebutlerAuthenticationError,
+    TimebutlerMissingCredentialsError,
+    TimebutlerParseError,
+    TimebutlerRateLimitError,
+    TimebutlerServerError,
+)
+from timebutler_client.models import (
+    Absence,
+    InvalidEmployee,
+    Project,
+    Service,
+    User,
+    WorkdaySchedule,
+    WorkdaysResult,
+    WorktimeEntry,
+)
+
+logger = logging.getLogger("timebutler_client.client")  # name from before the v1/v2 split; keep for log configs
+_EMPLOYEE_NUMBER_PATTERN = re.compile(r"^\d+$")
+
+V1_BASE_URL = "https://app.timebutler.com/api/v1"
+
+
+class V1Mixin:
+    """Methods for the Timebutler API v1. Mixed into TimebutlerClient."""
+
+    base_url: str
+    timeout: float
+    _api_key: str | None
+
+    def _require_api_key(self) -> str:
+        if self._api_key is None:
+            raise TimebutlerMissingCredentialsError("api_key")
+        return self._api_key
+
+    async def get_absences(self, year: int) -> list[Absence]:
+        """
+        Fetch absences for a given year.
+
+        Args:
+            year: The year to fetch absences for (e.g., 2026)
+
+        Returns:
+            List of Absence objects
+
+        Raises:
+            ValueError: If year is outside valid range (1900-2100)
+            TimebutlerAuthenticationError: If API key is invalid
+            TimebutlerRateLimitError: If rate limit is exceeded
+            TimebutlerServerError: If server returns 5xx error
+            TimebutlerParseError: If response cannot be parsed
+
+        Note:
+            Despite being named 'get_', this calls a POST endpoint
+            (Timebutler API only accepts POST requests).
+        """
+        if not 1900 <= year <= 2100:
+            raise ValueError(f"Year must be between 1900 and 2100, got {year}")
+
+        # Session is created per-call for simplicity.
+        # For high-throughput scenarios, consider passing a shared session
+        # or refactoring to use a context manager pattern.
+        timeout_config = aiohttp.ClientTimeout(total=self.timeout)
+        async with aiohttp.ClientSession(timeout=timeout_config) as session:
+            async with session.post(
+                f"{self.base_url}/absences",
+                data={"auth": self._require_api_key(), "year": str(year)},
+            ) as response:
+                await self._check_response(response)
+                csv_text = await response.text()
+                return self._parse_absences_csv(csv_text)
+
+    async def _check_response(self, response: aiohttp.ClientResponse) -> None:
+        """Check response status and raise appropriate exceptions."""
+        if response.status in (401, 403):
+            raise TimebutlerAuthenticationError("Invalid API key")
+        if response.status == 429:
+            retry_after = response.headers.get("Retry-After")
+            raise TimebutlerRateLimitError(int(retry_after) if retry_after else None)
+        if response.status >= 500:
+            text = await response.text()
+            raise TimebutlerServerError(response.status, text[:200])
+        response.raise_for_status()
+
+    def _parse_absences_csv(self, csv_text: str) -> list[Absence]:
+        """Parse semicolon-delimited CSV into Absence models."""
+        try:
+            reader = csv.DictReader(StringIO(csv_text), delimiter=";")
+            absences: list[Absence] = []
+
+            for row in reader:
+                absence = Absence(
+                    id=int(row["ID"]),
+                    from_date=row["From"],  # type: ignore[arg-type]  # BeforeValidator handles str->date
+                    to_date=row["To"],  # type: ignore[arg-type]  # BeforeValidator handles str->date
+                    employee_number=row["Employee number"],
+                    user_id=int(row["User ID"]) if row.get("User ID") else 0,
+                    half_day=row.get("Half a day", "").lower() == "true",
+                    morning=row.get("Morning", "").lower() == "true",
+                    absence_type=row.get("Type", ""),
+                    extra_vacation=row.get("Extra vacation day", "").lower() == "true",
+                    state=row.get("State", ""),
+                    substitute_state=row.get("Substitute state", ""),
+                    workdays=Decimal(row["Workdays"]) if row.get("Workdays") else Decimal("0"),
+                    hours=Decimal(row["Hours"]) if row.get("Hours") else Decimal("0"),
+                    medical_certificate=row.get("Medical certificate (sick leave only)", "").strip() or None,
+                    comments=row.get("Comments", "").strip() or None,
+                    substitute_user_id=(
+                        int(row["User ID of the substitute"]) if row.get("User ID of the substitute") else 0
+                    ),
+                )
+                absences.append(absence)
+
+            return absences
+        except (KeyError, ValueError) as e:
+            raise TimebutlerParseError(f"Failed to parse API response: {e}") from e
+
+    async def get_projects(self) -> list[Project]:
+        """
+        Fetch all projects.
+
+        Returns:
+            List of Project objects (both active and inactive)
+
+        Raises:
+            TimebutlerAuthenticationError: If API key is invalid
+            TimebutlerRateLimitError: If rate limit is exceeded
+            TimebutlerServerError: If server returns 5xx error
+            TimebutlerParseError: If response cannot be parsed
+
+        Note:
+            Despite being named 'get_', this calls a POST endpoint
+            (Timebutler API only accepts POST requests).
+        """
+        timeout_config = aiohttp.ClientTimeout(total=self.timeout)
+        async with aiohttp.ClientSession(timeout=timeout_config) as session:
+            async with session.post(
+                f"{self.base_url}/projects",
+                data={"auth": self._require_api_key()},
+            ) as response:
+                await self._check_response(response)
+                csv_text = await response.text()
+                return self._parse_projects_csv(csv_text)
+
+    def _parse_projects_csv(self, csv_text: str) -> list[Project]:
+        """Parse semicolon-delimited CSV into Project models."""
+        try:
+            reader = csv.DictReader(StringIO(csv_text), delimiter=";")
+            projects: list[Project] = []
+
+            for row in reader:
+                project = Project(
+                    id=int(row["ID of the project"]),
+                    name=row["Name"],
+                    state=row["State"],
+                    budget_hours=int(row["Budget in hours"]) if row.get("Budget in hours") else 0,
+                    comments=row.get("Comments", "").strip() or None,
+                    creation_date=row["Creation date"],  # type: ignore[arg-type]  # BeforeValidator handles str->date
+                )
+                projects.append(project)
+
+            return projects
+        except (KeyError, ValueError) as e:
+            raise TimebutlerParseError(f"Failed to parse API response: {e}") from e
+
+    async def get_services(self) -> list[Service]:
+        """
+        Fetch all services.
+
+        Returns:
+            List of Service objects (both active and inactive)
+
+        Raises:
+            TimebutlerAuthenticationError: If API key is invalid
+            TimebutlerRateLimitError: If rate limit is exceeded
+            TimebutlerServerError: If server returns 5xx error
+            TimebutlerParseError: If response cannot be parsed
+
+        Note:
+            Despite being named 'get_', this calls a POST endpoint
+            (Timebutler API only accepts POST requests).
+        """
+        timeout_config = aiohttp.ClientTimeout(total=self.timeout)
+        async with aiohttp.ClientSession(timeout=timeout_config) as session:
+            async with session.post(
+                f"{self.base_url}/services",
+                data={"auth": self._require_api_key()},
+            ) as response:
+                await self._check_response(response)
+                csv_text = await response.text()
+                return self._parse_services_csv(csv_text)
+
+    def _parse_services_csv(self, csv_text: str) -> list[Service]:
+        """Parse semicolon-delimited CSV into Service models."""
+        try:
+            reader = csv.DictReader(StringIO(csv_text), delimiter=";")
+            services: list[Service] = []
+
+            for row in reader:
+                service = Service(
+                    id=int(row["ID of the service"]),
+                    name=row["Name"],
+                    state=row["State"],
+                    billable=row.get("Billable", "").lower() == "true",
+                    comments=row.get("Comments", "").strip() or None,
+                    creation_date=row["Creation date"],  # type: ignore[arg-type]  # BeforeValidator handles str->date
+                )
+                services.append(service)
+
+            return services
+        except (KeyError, ValueError) as e:
+            raise TimebutlerParseError(f"Failed to parse API response: {e}") from e
+
+    async def get_worktime(
+        self,
+        year: int | None = None,
+        month: int | None = None,
+        user_id: int | None = None,
+    ) -> list[WorktimeEntry]:
+        """
+        Fetch worktime entries.
+
+        Args:
+            year: Calendar year (defaults to current year if omitted)
+            month: Month 1-12 (defaults to current month if omitted)
+            user_id: Filter by specific user ID (optional)
+
+        Returns:
+            List of WorktimeEntry objects
+
+        Raises:
+            ValueError: If month is outside 1-12 range
+            TimebutlerAuthenticationError: If API key is invalid
+            TimebutlerRateLimitError: If rate limit is exceeded
+            TimebutlerServerError: If server returns 5xx error
+            TimebutlerParseError: If response cannot be parsed
+
+        Note:
+            Despite being named 'get_', this calls a POST endpoint
+            (Timebutler API only accepts POST requests).
+        """
+        if month is not None and not 1 <= month <= 12:
+            raise ValueError(f"Month must be between 1 and 12, got {month}")
+
+        data: dict[str, str] = {"auth": self._require_api_key()}
+        if year is not None:
+            data["year"] = str(year)
+        if month is not None:
+            data["month"] = str(month)
+        if user_id is not None:
+            data["userid"] = str(user_id)
+
+        timeout_config = aiohttp.ClientTimeout(total=self.timeout)
+        async with aiohttp.ClientSession(timeout=timeout_config) as session:
+            async with session.post(
+                f"{self.base_url}/worktime",
+                data=data,
+            ) as response:
+                await self._check_response(response)
+                csv_text = await response.text()
+                return self._parse_worktime_csv(csv_text)
+
+    async def get_workdays(self) -> WorkdaysResult:
+        """
+        Fetch workday schedules for all users, enriched with employee numbers.
+
+        Internally calls both /workdays and /users concurrently to resolve
+        the employee number for each user ID.
+
+        Returns:
+            WorkdaysResult with schedules and invalid_employees.
+            Both lists preserve API response order and are not sorted.
+            Workday entries for users with unparsable employee numbers are
+            excluded from schedules and returned as InvalidEmployee objects instead.
+
+        Raises:
+            TimebutlerAuthenticationError: If API key is invalid
+            TimebutlerRateLimitError: If rate limit is exceeded
+            TimebutlerServerError: If server returns 5xx error
+            TimebutlerParseError: If response cannot be parsed
+
+        Note:
+            Despite being named 'get_', this calls POST endpoints
+            (Timebutler API only accepts POST requests).
+        """
+        api_key = self._require_api_key()
+        timeout_config = aiohttp.ClientTimeout(total=self.timeout)
+        async with aiohttp.ClientSession(timeout=timeout_config) as session:
+
+            async def _fetch(endpoint: str) -> str:
+                async with session.post(
+                    f"{self.base_url}/{endpoint}",
+                    data={"auth": api_key},
+                ) as response:
+                    await self._check_response(response)
+                    return await response.text()
+
+            workdays_csv, users_csv = await asyncio.gather(_fetch("workdays"), _fetch("users"))
+
+        users, invalid_employees = self._parse_users_csv(users_csv)
+        invalid_user_ids: set[int] = {inv.user_id for inv in invalid_employees if inv.user_id is not None}
+        employee_number_map: dict[int, str] = {u.user_id: u.employee_number for u in users}
+        schedules = self._parse_workdays_csv(workdays_csv, employee_number_map, skip_user_ids=invalid_user_ids)
+        return WorkdaysResult(schedules=schedules, invalid_employees=invalid_employees)
+
+    def _parse_workdays_csv(
+        self,
+        csv_text: str,
+        employee_number_map: dict[int, str],
+        skip_user_ids: set[int] | None = None,
+    ) -> list[WorkdaySchedule]:
+        """Parse semicolon-delimited CSV into WorkdaySchedule models."""
+        try:
+            reader = csv.DictReader(StringIO(csv_text), delimiter=";")
+            schedules: list[WorkdaySchedule] = []
+
+            for row in reader:
+                user_id = int(row["User ID"])
+                if skip_user_ids and user_id in skip_user_ids:
+                    continue
+                employee_number = employee_number_map.get(user_id)
+                if employee_number is None:
+                    raise TimebutlerParseError(f"No user found for user ID {user_id} in users response")
+                schedule = WorkdaySchedule(
+                    user_id=user_id,
+                    valid_from=row["Valid from (dd/mm/yyyy)"],  # type: ignore[arg-type]
+                    employee_number=employee_number,
+                    monday_minutes=(
+                        int(row["Monday working time in minutes"]) if row.get("Monday working time in minutes") else 0
+                    ),
+                    tuesday_minutes=(
+                        int(row["Tuesday working time in minutes"]) if row.get("Tuesday working time in minutes") else 0
+                    ),
+                    wednesday_minutes=(
+                        int(row["Wednesday working time in minutes"])
+                        if row.get("Wednesday working time in minutes")
+                        else 0
+                    ),
+                    thursday_minutes=(
+                        int(row["Thursday working time in minutes"])
+                        if row.get("Thursday working time in minutes")
+                        else 0
+                    ),
+                    friday_minutes=(
+                        int(row["Friday working time in minutes"]) if row.get("Friday working time in minutes") else 0
+                    ),
+                    saturday_minutes=(
+                        int(row["Saturday working time in minutes"])
+                        if row.get("Saturday working time in minutes")
+                        else 0
+                    ),
+                    sunday_minutes=(
+                        int(row["Sunday working time in minutes"]) if row.get("Sunday working time in minutes") else 0
+                    ),
+                    holiday_set_id=int(row["ID of the holiday set"]) if row.get("ID of the holiday set") else 0,
+                )
+                schedules.append(schedule)
+
+            return schedules
+        except (KeyError, ValueError) as e:
+            raise TimebutlerParseError(f"Failed to parse API response: {e}") from e
+
+    async def get_users(self) -> list[User]:
+        """
+        Fetch all users.
+
+        Returns:
+            List of User objects in API response order; not sorted.
+
+        Raises:
+            TimebutlerAuthenticationError: If API key is invalid
+            TimebutlerRateLimitError: If rate limit is exceeded
+            TimebutlerServerError: If server returns 5xx error
+            TimebutlerParseError: If response cannot be parsed
+
+        Note:
+            Despite being named 'get_', this calls a POST endpoint
+            (Timebutler API only accepts POST requests).
+        """
+        timeout_config = aiohttp.ClientTimeout(total=self.timeout)
+        async with aiohttp.ClientSession(timeout=timeout_config) as session:
+            async with session.post(
+                f"{self.base_url}/users",
+                data={"auth": self._require_api_key()},
+            ) as response:
+                await self._check_response(response)
+                csv_text = await response.text()
+                users, invalid_employees = self._parse_users_csv(csv_text)
+                if invalid_employees:
+                    logger.warning(
+                        "Skipped %d user(s) with missing or non-numeric employee numbers (user_ids: %s)",
+                        len(invalid_employees),
+                        [e.user_id for e in invalid_employees],
+                    )
+                return users
+
+    def _parse_users_csv(self, csv_text: str) -> tuple[list[User], list[InvalidEmployee]]:
+        """Parse semicolon-delimited CSV into User models."""
+        try:
+            reader = csv.DictReader(StringIO(csv_text), delimiter=";")
+            users: list[User] = []
+            invalid_employees: list[InvalidEmployee] = []
+
+            for row in reader:
+                raw_employee_number = row.get("Employee number", "").strip()
+                raw_user_id = row.get("User ID", "").strip()
+                if not _EMPLOYEE_NUMBER_PATTERN.match(raw_employee_number):
+                    invalid_employees.append(
+                        InvalidEmployee(
+                            user_id=int(raw_user_id) if raw_user_id.isdigit() else None,
+                            first_name=row.get("First name", "").strip(),
+                            last_name=row.get("Last name", "").strip(),
+                            raw_employee_number=raw_employee_number,
+                        )
+                    )
+                    continue
+                user = User(
+                    user_id=int(row["User ID"]),
+                    last_name=row["Last name"],
+                    first_name=row["First name"],
+                    employee_number=raw_employee_number,
+                    email=row.get("E-mail address", "").strip(),
+                    phone=row.get("Phone", "").strip(),
+                    mobile_phone=row.get("Mobile phone", "").strip(),
+                    cost_center=row.get("Cost center", "").strip(),
+                    branch_office=row.get("Branch office", "").strip(),
+                    department=row.get("Department", "").strip(),
+                    user_type=row.get("User type", "").strip() or None,  # type: ignore[arg-type]
+                    language=row.get("Language", "").strip(),
+                    manager_user_ids=row.get("User ID list of the user's manager", ""),  # type: ignore[arg-type]
+                    account_locked=row.get("User account locked", "").lower() == "true",
+                    additional_information=row.get("Additional Information", "").strip(),
+                    date_of_entry=row.get("Date of entry (dd/mm/yyyy)", ""),  # type: ignore[arg-type]
+                    date_of_separation=row.get(  # type: ignore[arg-type]
+                        "Date of separation from company (dd/mm/yyyy)", ""
+                    ),
+                    date_of_birth=row.get("Day of birth (dd/mm/yyyy)", ""),  # type: ignore[arg-type]
+                )
+                users.append(user)
+
+            return users, invalid_employees
+        except (KeyError, ValueError) as e:
+            raise TimebutlerParseError(f"Failed to parse API response: {e}") from e
+
+    def _parse_worktime_csv(self, csv_text: str) -> list[WorktimeEntry]:
+        """Parse semicolon-delimited CSV into WorktimeEntry models."""
+        try:
+            reader = csv.DictReader(StringIO(csv_text), delimiter=";")
+            entries: list[WorktimeEntry] = []
+
+            for row in reader:
+                entry = WorktimeEntry(
+                    id=int(row["ID of the work time entry"]),
+                    user_id=int(row["User ID"]),
+                    employee_number=row["Employee number"],
+                    date=row["Date (dd/mm/yyyy)"],  # type: ignore[arg-type]  # BeforeValidator handles str->date
+                    start_time=row["Start time (hh:mm)"],  # type: ignore[arg-type]  # BeforeValidator handles str->time
+                    end_time=row["End time (hh:mm)"],  # type: ignore[arg-type]  # BeforeValidator handles str->time
+                    working_time_seconds=int(row["Working time in seconds"]),
+                    pause_seconds=int(row["Pause in seconds"]) if row.get("Pause in seconds") else 0,
+                    state=row["State"],
+                    project_id=int(row["ID of the project"]) if row.get("ID of the project") else 0,
+                    service_id=int(row["ID of the service"]) if row.get("ID of the service") else 0,
+                    comments=row.get("Comments", "").strip() or None,
+                    auto_stopped=row.get("Auto stopped", "").lower() == "true",
+                )
+                entries.append(entry)
+
+            return entries
+        except (KeyError, ValueError) as e:
+            raise TimebutlerParseError(f"Failed to parse API response: {e}") from e

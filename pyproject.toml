@@ -29,6 +29,7 @@ tests = [
     "pytest==9.1.1",
     "pytest-asyncio==1.4.0",
     "aioresponses==0.7.9",
+    "tzdata==2025.2", # zoneinfo has no time zone database on Windows
     "aiohttp<3.14", # aioresponses 0.7.x mocks aiohttp internals incompatible with 3.14's ClientResponse signature
 ]
 linting = [
@@ -46,8 +47,14 @@ coverage = [
     "coverage==7.16.2",
     { include-group = "tests" },
 ]
+codegen = [
+    "datamodel-code-generator==0.83.0",
+    "ruff==0.16.10",
+    { include-group = "tests" },
+]
 dev = [
     { include-group = "tests" },
+    { include-group = "codegen" },
     { include-group = "linting" },
     { include-group = "type_check" },
     { include-group = "coverage" },
@@ -64,6 +71,7 @@ Homepage = "https://github.com/Hochfrequenz/timebutler_client.py"
 
 [tool.ruff]
 line-length = 120
+extend-exclude = ["src/timebutler_client/models/v2/_generated.py"]
 
 [tool.ruff.lint]
 select = [
@@ -121,6 +129,8 @@ version = "{version}"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+markers = ["integration: hits the real Timebutler API v2 (needs TIMEBUTLER_PERSONAL_TOKEN)"]
+addopts = "-m 'not integration'"
 
 [tool.hatch.build.targets.sdist]
 exclude = ["/unittests"]

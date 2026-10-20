@@ -20,7 +20,7 @@ jobs:
               uv run --group type_check mypy --show-error-codes unittests --strict
           - group: spell_check
             commands: |
-              uv run --group spell_check codespell --ignore-words=domain-specific-terms.txt src
+              uv run --group spell_check codespell --ignore-words=domain-specific-terms.txt --skip="*/models/v2/_generated.py" src
               uv run --group spell_check codespell --ignore-words=domain-specific-terms.txt README.md
     steps:
       - uses: actions/checkout@v7
