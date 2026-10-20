@@ -400,12 +400,9 @@ class V1Mixin:
                 users, invalid_employees = self._parse_users_csv(csv_text)
                 if invalid_employees:
                     logger.warning(
-                        "Skipped %d user(s) with missing or non-numeric employee numbers: %s",
+                        "Skipped %d user(s) with missing or non-numeric employee numbers (user_ids: %s)",
                         len(invalid_employees),
-                        [
-                            f"{e.display_name} (user_id={e.user_id}, raw={e.raw_employee_number!r})"
-                            for e in invalid_employees
-                        ],
+                        [e.user_id for e in invalid_employees],
                     )
                 return users
 
