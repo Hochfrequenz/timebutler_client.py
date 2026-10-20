@@ -2,7 +2,7 @@
 
 import pytest
 
-from timebutler_client import TimebutlerClient, TimebutlerMissingCredentialsError
+from timebutler_client import TimebutlerClient, TimebutlerMissingCredentialsError, _v1
 
 
 class TestCredentials:
@@ -15,6 +15,9 @@ class TestCredentials:
     def test_positional_api_key_still_works(self) -> None:
         client = TimebutlerClient("legacy-key")
         assert client.base_url == "https://app.timebutler.com/api/v1"
+
+    def test_v1_logger_name_unchanged(self) -> None:
+        assert _v1.logger.name == "timebutler_client.client"
 
     def test_personal_token_only(self) -> None:
         client = TimebutlerClient(personal_token="tb_abc")

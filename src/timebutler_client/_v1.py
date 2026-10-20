@@ -27,7 +27,7 @@ from timebutler_client.models import (
     WorktimeEntry,
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("timebutler_client.client")  # name from before the v1/v2 split; keep for log configs
 _EMPLOYEE_NUMBER_PATTERN = re.compile(r"^\d+$")
 
 V1_BASE_URL = "https://app.timebutler.com/api/v1"
