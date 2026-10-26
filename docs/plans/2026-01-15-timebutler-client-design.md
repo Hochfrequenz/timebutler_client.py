@@ -120,7 +120,7 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 ```
 
-Version constraints ensure Python 3.11-3.14 compatibility.
+Version constraints ensure Python 3.11-3.15 compatibility.
 
 ## Testing
 
